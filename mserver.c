@@ -11,6 +11,7 @@
 #include "mfdevent.h"
 #include "mnetwork.h"
 #include "mplugin.h"
+#include "marray.h"
 
 #ifdef HAVE_GETUID
 #ifndef HAVE_ISSETUGID
@@ -534,4 +535,21 @@ int main(int argc, char* argv[]){
 
 	srv->config_storage[0]->high_precision_timestamps = srv->srvconf.high_precision_timestamps;
 
+
+	/*dump unused config-key*/
+	size_t i;
+	for (i = 0; i < srv->config_context->used; i++){
+		array* config = ((data_config*)srv->config_context->data[i])->value;
+		size_t j = 0;
+		for (j = 0; config && j < config->used; i++){
+			data_unset* du = config->data[j];
+			if (strncmp(du->key->ptr, "var.", sizeof("var.") - 1) == 0)
+				continue;
+			if(NULL == array_get_element(srv->config_touched,du->key->ptr)){
+				log_error_write(srv, __FILE__, __LINE__, "sbs",
+					"WARNING: unknown config-key: ", du->key,
+					"(ignored)");
+			}
+		}
+	}
 }

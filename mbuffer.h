@@ -2,6 +2,7 @@
 #define MBUFFER_H_
 
 #include <string.h>
+#include <stdint.h>
 
 typedef struct buffer{
 	char* ptr;
@@ -19,11 +20,19 @@ void buffer_reset(buffer* b);
 void buffer_copy_string(buffer* b, const char* s);
 void buffer_copy_buffer(buffer* b, const buffer* src);
 
-int buffer_string_is_empty(buffer* b);
-void buffer_copy_int(buffer* b, int d);
+int buffer_is_empty(const buffer* b);
+int buffer_string_is_empty(const buffer* b);
+char* buffer_string_prepare_copy(buffer* b, size_t size);
+void buffer_copy_int(buffer* b, intmax_t d);
+void buffer_append_int(buffer* b, intmax_t val);
 void buffer_append_string_len(buffer* b, const char* s, size_t s_len);
+char* buffer_string_prepare_append(buffer* b, size_t size);
 
-int buffer_string_length(buffer* b);
+void buffer_commit(buffer* b, size_t size);
+
+#define LI_ITOSTRING_LENGTH (2 + (8 * sizeof(intmax_t) * 31 + 99) / 100)
+
+int buffer_string_length(const buffer* b);
 
 #define CONST_STR_LEN(x) x, (x) ? sizeof(x) - 1 : 0
 #define CONST_BUF_LEN(x) ((x) ? (x)->ptr : NULL), buffer_string_length(x)

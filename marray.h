@@ -1,6 +1,8 @@
 #ifndef MARRAY_H_
 #define MARRAY_H_
 
+#include "mvector.h"
+
 typedef enum{ TYPE_UNSET, TYPE_STRING, TYPE_OTHER, TYPE_ARRAY, TYPE_INTEGER, TYPE_FASTCGI, TYPE_CONFIG }data_type_t;
 #define DATA_UNSET\
 	data_type_t type; \
@@ -40,7 +42,26 @@ typedef struct{
 
 data_array* data_array_init();
 
-typedef struct{
+typedef enum{
+	COMP_UNSET,
+	COMP_SERVER_SOCKET,
+	COMP_HTTP_URL,
+	COMP_HTTP_HOST,
+	COMP_HTTP_REFERER,
+	COMP_HTTP_USER_AGENT,
+	COMP_HTTP_LANGUAGE,
+	COMP_HTTP_COOKIE,
+	COMP_HTTP_REMOTE_IP,
+	COMP_HTTP_QUERY_STRING,
+	COMP_HTTP_SCHEME,
+	COMP_HTTP_REQUEST_METHOD,
+	COMP_LAST_ELEMENT
+}comp_key_t;
+
+typedef struct data_config data_config;
+DEFINE_TYPED_VECTOR_NO_RELEASE(config_weak,data_config*)
+
+struct data_config{
 	DATA_UNSET;
 
 	array* value;
@@ -62,7 +83,7 @@ typedef struct{
 	pcre* regex;
 	pcre_extra* regex_study;
 #endif
-}data_config;
+};
 
 data_config* data_config_init();
 
