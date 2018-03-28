@@ -12,6 +12,7 @@
 #include "mnetwork.h"
 #include "mplugin.h"
 #include "marray.h"
+#include "msettings.h"
 
 #ifdef HAVE_GETUID
 #ifndef HAVE_ISSETUGID
@@ -31,6 +32,36 @@ static server* server_init(){
 
 static void server_free(server* srv){
 
+}
+
+static void remove_pid_file(server* srv, int* pid){
+	if (!buffer_string_is_empty(srv->srvconf.pid_file) && 0 <= *pid){
+		if (0 != ftruncate(*pid, 0)){
+			log_error_write(srv, __FILE__, __LINE__, "sbds",
+				"ftruncate failed for:",
+				srv->srvconf.pid_file,
+				errno,
+				strerror(errno));
+		}
+	}
+
+	if (0 <= *pid){
+		close(*pid);
+		*pid = -1;
+	}
+
+	if (!buffer_string_is_empty(srv->srvconf.pid_file)
+		&& buffer_string_is_empty(srv->srvconf.changeroot)){
+		if (0 != unlink(srv->srvconf.pid_file->ptr)){
+			if (errno != EACCES && errno != EPERM){
+				log_error_write(srv, __FILE__, __LINE__, "sbds",
+					"unlink failed for: ",
+					srv->srvconf.pid_file,
+					errno,
+					strerror(errno));
+			}
+		}
+	}
 }
 
 static volatile sig_atomic_t srv_shutdown = 0;
@@ -136,6 +167,7 @@ int main(int argc, char* argv[]){
 	int o;
 	int pid_fd = -1, parent_pipe_fd;
 	time_t idle_limit;
+	int num_child = 0;
 
 	setlocale(LC_TIME, "C");
 
@@ -552,4 +584,257 @@ int main(int argc, char* argv[]){
 			}
 		}
 	}
+
+	if (srv->config_unsupported){
+		log_error_write(srv, __FILE__, __LINE__, "s",
+			"Configuration contains unsupported keys. Going down");
+	}
+	if (srv->config_deprecated){
+		log_error_write(srv, __FILE__, __LINE__, "s",
+			"Configuration contains deprecated keys. Going down");
+	}
+
+	if (srv->config_unsupported || srv->config_deprecated){
+		plugins_free(srv);
+		network_close(srv);
+		server_free(srv);
+		return -1;
+	}
+
+	if (srv->srvconf.preflight_check){
+		plugins_free(srv);
+		network_close(srv);
+		server_free(srv);
+		exit(0);
+	}
+
+#ifdef HAVE_FORK
+	if (srv->srvconf.dont_daemonize == 0){
+		if (0 > write(parent_pipe_fd, "", 1))	return -1;
+		close(parent_pipe_fd);
+	}
+	
+	if (idle_limit && srv->srvconf.max_worker){
+		srv->srvconf.max_worker = 0;
+		log_error_write(srv, __FILE__, __LINE__, "s",
+			"server idle time limit command line option disables server.max_worker config file option.");
+	}
+
+	num_child = srv->srvconf.max_worker;
+	if (num_child > 0){
+		int child = 0;
+		while (!child && !srv_shutdown && !graceful_shutdown){
+			if (num_child > 0){
+				switch (fork()){
+				case -1:
+					return -1;
+				case 0:
+					child = 1;
+					break;
+				default:
+					num_child--;
+				}
+			}else{
+				int status;
+				if (-1 != wait(status)){
+					num_child++;
+				}else{
+					switch (errno){
+					case EINTR:
+						if (handle_sig_hup){
+							handle_sig_hup = 0;
+							log_error_cycle(srv);
+							if (!forwarded_sig_hup && 0 != srv->srvconf.max_worker){
+								forwarded_sig_hup = 1;
+								kill(0, SIGHUP);
+							}
+						}
+						break;
+					default:
+						break;
+					}
+				}
+			}
+		}
+		if (!child){
+			if (srv_shutdown){
+				kill(0, SIGINT);
+			}else if (graceful_shutdown){
+				kill(0, SIGTERM);
+			}
+
+			remove_pid_file(srv, &pid_fd);
+			log_error_close(srv);
+			network_close(srv);
+			connections_free(srv);
+			plugins_free(srv);
+			server_free(srv);
+			return 0;
+		}
+
+		if (0 <= *pid_fd){
+			close(*pid_fd);
+			*pid_fd = -1;
+		} 
+
+		buffer_reset(srv->srvconf.pid_file);
+		//li_rand_reseed();
+	}
+#endif
+
+	if (NULL == (srv->ev = fdevent_init(srv, srv->max_fds + 1, srv->event_handler))){
+		log_error_write(srv, __FILE__, __LINE__, "s",
+			"fdevent_init failed");
+		return -1;
+	}
+
+	if (0 != network_register_fdevents(srv)){
+		plugins_free(srv);
+		network_close(srv);
+		server_free(srv);
+		return -1;
+	}
+
+	if (NULL == (srv->stat_cache = stat_cache_init())){
+		log_error_write(srv, __FILE__, __LINE__, "s",
+			"stat-cache could not be setup, dieing.");
+		return -1;
+	}
+
+	/*get the current number of fds*/
+	srv->cur_fds = open("/dev/null", O_RDONLY);	
+	close(srv->cur_fds);
+
+	for (i = 0; i < srv->srv_sockets.used; i++){
+		server_socket* srv_socket = srv->srv_sockets.ptr[i];
+		if (srv->sockets_disabled) continue;
+		if (-1 == fdevent_fcntl_set_nb_cloexec_sock(srv->ev, srv_socket->fd)){
+			log_error_write(srv, __FILE__, __LINE__, "ss",
+				"fcntl failed ", strerror(errno));
+			return -1;
+		}
+	}
+
+	/*main loop*/
+	while (!srv_shutdown){
+		time_t min_ts = 0;
+		if (handle_sig_hup){
+			handle_sig_hup = 0;
+			handle_t r;
+			switch (r = plugins_call_handle_sighup(srv)){
+			case HANDLER_GO_ON:
+				break;
+			default:
+				log_error_write(srv, __FILE__, __LINE__, "sd", "sighup-handler return with an error", r);
+				break;
+			}
+
+			if (-1 == log_error_cycle(srv)){
+				log_error_write(srv, __FILE__, __LINE__, "s", "cycle errorlog failed, dying");
+				return -1;
+			}else{
+#ifdef HAVE_SIGACTION
+				log_error_write(srv, __FILE__, __LINE__, "sdsd",
+					"logfiles cycled UID = ",
+					last_sighup_info.si_uid,
+					"PID =",
+					last_sighup_info.si_pid);
+#else
+				log_error_write(srv, __FILE__, __LINE__, "s",
+					"logfiles cycled");
+#endif
+			}
+		}
+
+		if (handle_sig_alarm){
+#ifdef USE_ALARM
+			handle_sig_alarm = 0;
+#endif
+			
+			min_ts = time(NULL);
+			if (min_ts != srv->cur_ts){
+				srv->cur_ts = min_ts;
+				
+				connections* conns = srv->conns;
+				handle_t r;
+				switch (r = plugins_call_handle_trigger(srv)){
+				case HANDLER_GO_ON:
+					break;
+				case HANDLER_ERROR:
+					log_error_write(srv, __FILE__, __LINE__, "s", "one of the triggers failed.");
+					break;
+				default:
+					log_error_write(srv, __FILE__, __LINE__, "d", r);
+					break;
+				}
+
+				//if (idle_limit && idle_limit < min_ts - last_active_ts && !graceful_shutdown){
+				
+			//	}
+				stat_cache_trigger_cleanup(srv);
+
+				/*check all connections for timeout*/
+// 				for (i = 0; i < conns->used; i++){
+// 					
+// 				}
+			}
+		}
+		int n;
+		if ((n = fdevent_poll(srv, 1000)) > 0){
+			int revents;
+			int fd_ndx = -1;
+			int fd;
+			do{
+				fdevent_handler handler;
+				void* context;
+
+				fd_ndx = fdevent_event_next_fdndx(srv->ev, fd_ndx);
+				if (fd_ndx == -1)	break;
+				revents = fdevent_event_get_revent(srv->ev, fd_ndx);
+				fd = fdevent_event_get_fd(srv->ev, fd_ndx);
+				handler = fdevent_get_handler(srv->ev, fd);
+				context = fdevent_get_context(srv->ev, fd);
+				if (handler != NULL)
+					(*handler)(srv, revents, context);
+			} while (--n > 0);
+
+			fdevent_sched_run(srv, srv->ev);
+		}else if (n < 0 && errno != EINTR){
+			log_error_write(srv, __FILE__, __LINE__, "ss",
+				"fdevent-poll failed ", strerror(errno));
+		}
+
+		for (i = 0; i < srv->joblist->used; i++){
+			connection* conn = srv->joblist->ptr[i];
+			connection_state_machine(srv, conn);
+			con->in_joblist = 0;
+		}
+		srv->joblist->used = 0;
+	}
+
+	if (0 == graceful_shutdown){
+		remove_pid_file(srv, &pid_fd);
+	}
+
+	if (2 == graceful_shutdown){
+		log_error_write(srv, __FILE__, __LINE__, "s", "Server stopped after idle timeout");
+	}
+	else{
+#ifdef HAVE_SIGACTION
+		log_error_write(srv, __FILE__, __LINE__, "sdsd",
+			"server stopped by UID=",
+			last_sigterm_info.si_uid,
+			"PID=",
+			last_sigterm_info.si_pid);
+#else
+		log_error_write(srv, __FILE__, __LINE__, "s", "server stopped");
+#endif
+	}
+
+	log_error_close(srv);
+	network_close(srv);
+	connections_free(srv);
+	plugins_free(srv);
+	server_free(srv);
+	return 0;
 }

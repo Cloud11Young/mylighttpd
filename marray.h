@@ -2,6 +2,7 @@
 #define MARRAY_H_
 
 #include "mvector.h"
+#include "mbuffer.h"
 
 typedef enum{ TYPE_UNSET, TYPE_STRING, TYPE_OTHER, TYPE_ARRAY, TYPE_INTEGER, TYPE_FASTCGI, TYPE_CONFIG }data_type_t;
 #define DATA_UNSET\
@@ -14,7 +15,7 @@ typedef enum{ TYPE_UNSET, TYPE_STRING, TYPE_OTHER, TYPE_ARRAY, TYPE_INTEGER, TYP
 	int (*insert_dup)(struct data_unset* det, struct data_unset* src); \
 	void (*print)(struct data_unset* p, int depth);\
 
-typedef struct {
+typedef struct data_unset{
 	DATA_UNSET;
 }data_unset;
 
@@ -43,6 +44,15 @@ typedef struct{
 data_array* data_array_init();
 
 typedef enum{
+	CONFIG_COND_UNSET,
+	CONFIG_COND_EQ,
+	CONFIG_COND_MATCH,
+	CONFIG_COND_NE,
+	CONFIG_COND_NOMATCH,
+	CONFIG_COND_ELSE
+}config_cond_t;
+
+typedef enum{
 	COMP_UNSET,
 	COMP_SERVER_SOCKET,
 	COMP_HTTP_URL,
@@ -59,7 +69,7 @@ typedef enum{
 }comp_key_t;
 
 typedef struct data_config data_config;
-DEFINE_TYPED_VECTOR_NO_RELEASE(config_weak,data_config*)
+DEFINE_TYPED_VECTOR_NO_RELEASE(config_weak, data_config*);
 
 struct data_config{
 	DATA_UNSET;

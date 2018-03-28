@@ -46,7 +46,7 @@ void array_free(array* a){
 void array_reset(array* a){
 	size_t i;
 	if (!a)	return;
-	for (i = 0; i < a.used; i++){
+	for (i = 0; i < a->used; i++){
 		if (a->data[i]) a->data[i]->reset(a->data[i]);
 	}
 	a->used = 0;

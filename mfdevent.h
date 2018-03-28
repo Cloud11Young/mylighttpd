@@ -1,7 +1,11 @@
 #ifndef FDEVENT_H_
 #define FDEVENT_H_
 
+//#include "mbase.h"
+#include <stdlib.h>
 #include <fcntl.h>
+
+struct server;
 
 typedef enum{	
 	FDEVENT_HANDLER_UNSET,
@@ -13,6 +17,12 @@ typedef enum{
 	FDEVENT_HANDLER_FREEBSD_KQUEUE,
 	FDEVENT_HANDLER_LIBEV
 }fdevent_handler_t;
+
+typedef struct fdevents{
+
+}fdevents;
+
+fdevents* fdevent_init(struct server* srv, size_t maxfds, fdevent_handler_t type);
 
 int fdevent_open_cloexec(const char* filename, int flags, mode_t mode);
 

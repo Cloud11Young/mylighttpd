@@ -9,19 +9,22 @@
 #  endif
 #endif
 
+#include <stdlib.h>
+#include <string.h>
+
 static size_t vector_align_size(size_t size){
 	size_t align = (size + 16) & ((size_t)~15);
 	return (align < size) ? size : align;
 }
 
-void vector_realloc(void* data, size_t elem_size, size_t size, size_t used);
+void* vector_realloc(void* data, size_t elem_size, size_t size, size_t used);
 
 #define DEFINE_TYPED_VECTOR(name,entry,release)\
-	typedef struct vector_ ## name(){\
+	typedef struct vector_ ## name{\
 		entry* data; \
 		size_t used; \
 		size_t size; \
-	}vector_##name;\
+	}vector_ ## name;\
 	static inline void vector_ ## name ## _init(vector_ ## name* v){\
 		v->data = NULL;\
 		v->used = v->size = 0;\
@@ -61,7 +64,7 @@ void vector_realloc(void* data, size_t elem_size, size_t size, size_t used);
 		return v->data[--v->used];\
 	}\
 
-	struct vector_ ## name\
+//	struct vector_ ## name\
 
 #define DEFINE_TYPED_VECTOR_NO_RELEASE(name,entry)\
 	DEFINE_TYPED_VECTOR(name,entry,((void (*)(entry))NULL))\
