@@ -4,12 +4,14 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <netinet/in.h>
 #include "mbuffer.h"
 #include "mfdevent.h"
 #include "marray.h"
 #include "msplaytree.h"
+#include "mchunk.h"
 
-typedef struct{
+typedef struct stat_cache {
 	splay_tree* files;
 	buffer* dirname;
 #ifdef HAVE_FAM_H
@@ -23,12 +25,22 @@ typedef struct{
 typedef struct specific_config{
 	buffer* document_root;
 	unsigned short high_precision_timestamps;
+
+	unsigned short use_ipv6;
+	unsigned short ssl_enabled;
+	unsigned short defer_accept;
+	int listen_backlog;
 }specific_config;
 
 typedef struct server_config{
+	unsigned short port;
+	buffer* bindhost;
+
 	buffer* modules_dir;
 	buffer* pid_file;
 	buffer* changeroot;
+	buffer* network_backend;
+	
 	int max_conns;
 	unsigned short preflight_check;
 
@@ -36,7 +48,7 @@ typedef struct server_config{
 }server_config;
 
 typedef struct connection{
-
+	int in_joblist;
 }connection;
 
 typedef struct connections{
@@ -45,7 +57,8 @@ typedef struct connections{
 	size_t size;
 }connections;
 
-typedef union{
+
+typedef union sock_addr{	
 #ifdef HAVE_IPV6
 	struct sockaddr_in6 ipv6;
 #endif
@@ -53,13 +66,13 @@ typedef union{
 #ifdef HAVE_SYS_UN_H
 	struct sockaddr_un un;
 #endif
-	struct sockaddr plain;
+	struct sockaddr plain;	
 }sock_addr;
 
 typedef struct server_socket{
 	sock_addr addr;
 	int fd;
-	int fd_ndx;
+	int fde_ndx;
 	unsigned short is_ssl;
 	buffer* srv_token;
 }server_socket;
@@ -82,6 +95,7 @@ typedef struct server{
 	int	max_fds;
 	int	max_conns;
 	int cur_fds;
+	int sockets_disabled;
 
 	time_t cur_ts;
 
@@ -101,6 +115,8 @@ typedef struct server{
 	connections* joblist;
 
 	stat_cache* stat_cache;
+
+	int (*network_backend_write)(struct server* srv, connection* conn, int fd, chunkqueue* cq, off_t max_bytes);
 }server;
 
 #endif

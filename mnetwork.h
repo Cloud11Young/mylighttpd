@@ -4,7 +4,8 @@
 #include "mbase.h"
 
 int network_init(server* srv);
+int network_close(server* srv);
 
-void network_close(server* srv);
+int network_register_fdevents(server* srv);
 
 #endif

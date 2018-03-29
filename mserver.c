@@ -720,7 +720,7 @@ int main(int argc, char* argv[]){
 		time_t min_ts = 0;
 		if (handle_sig_hup){
 			handle_sig_hup = 0;
-			handle_t r;
+			handler_t r;
 			switch (r = plugins_call_handle_sighup(srv)){
 			case HANDLER_GO_ON:
 				break;
@@ -756,7 +756,7 @@ int main(int argc, char* argv[]){
 				srv->cur_ts = min_ts;
 				
 				connections* conns = srv->conns;
-				handle_t r;
+				handler_t r;
 				switch (r = plugins_call_handle_trigger(srv)){
 				case HANDLER_GO_ON:
 					break;
@@ -795,7 +795,7 @@ int main(int argc, char* argv[]){
 				handler = fdevent_get_handler(srv->ev, fd);
 				context = fdevent_get_context(srv->ev, fd);
 				if (handler != NULL)
-					(*handler)(srv, revents, context);
+					(*handler)(srv, context, revents);
 			} while (--n > 0);
 
 			fdevent_sched_run(srv, srv->ev);
@@ -807,7 +807,7 @@ int main(int argc, char* argv[]){
 		for (i = 0; i < srv->joblist->used; i++){
 			connection* conn = srv->joblist->ptr[i];
 			connection_state_machine(srv, conn);
-			con->in_joblist = 0;
+			conn->in_joblist = 0;
 		}
 		srv->joblist->used = 0;
 	}

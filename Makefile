@@ -1,6 +1,7 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplay_tree.o
-
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o
+time=$(shell date)
 server:$(targets)
+	@echo "$(time)"
 	gcc -o server $(targets)
 server.o:mserver.c mserver.h
 	gcc -c server.c
@@ -18,7 +19,11 @@ mnetwork.o:mnetwork.c mnetwork.h
 	gcc -c mnetwork.c
 marray.o:marray.c marray.h
 	gcc -c marray.c
-msplay_tree.o:msplay_tree.c msplay_tree.h
-	gcc -c msplay_tree.c
+msplaytree.o:msplaytree.c msplaytree.h
+	gcc -c msplaytree.c
+mstat_cache.o:mstat_cache.c mstat_cache.h
+	gcc -c mstat_cache.c
+mchunk.o:mchunk.c mchunk.h
+	gcc -c mchunk.c
 clean:
 	rm -f $(targets)
