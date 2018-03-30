@@ -189,3 +189,23 @@ void buffer_commit(buffer* b, size_t size){
 int buffer_string_length(const buffer* b){
 	return b != NULL && b->used != 0 ? b->used - 1 : 0;
 }
+
+int buffer_is_equal(const buffer* a, const buffer* b){
+	force_assert(a != NULL && b != NULL);
+	
+	if (a->used != b->used)	return 0;
+	if (a->used == 0)	return 1;
+
+	return (0 == memcmp(a->ptr, b->ptr, a->used));
+}
+
+int buffer_is_equal_string(const buffer* a, const char* s, size_t b_len){
+	force_assert(NULL != a && NULL != s);
+	force_assert(b_len + 1 > b_len);
+
+	if (a->used != b_len + 1)	return 0;
+	if (0 != memcmp(a->ptr, s, b_len))	return 0;
+	if ('\0' != a->ptr[a->used - 1])	return 0;
+
+	return 1;
+}

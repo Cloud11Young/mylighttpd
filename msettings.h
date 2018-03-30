@@ -1,6 +1,9 @@
 #ifndef MSETTINGS_H_
 #define MSETTINGS_H_
 
+#define UNUSED(x) ((void)x)
+#define BV(x) (1<<x)
+
 typedef enum{
 	HANDLER_UNSET,
 	HANDLER_GO_ON,

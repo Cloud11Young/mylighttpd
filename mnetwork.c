@@ -266,7 +266,7 @@ int network_init(server* srv){
 	}
 
 	for (i = 1; i < srv->config_context->used; i++){
-		data_config* dc = srv->config_context->data[i];
+		data_config* dc = (data_config*)srv->config_context->data[i];
 		specific_config* s = srv->config_storage[i];
 
 		if (COMP_SERVER_SOCKET != dc->comp) continue;
@@ -285,9 +285,39 @@ int network_init(server* srv){
 }
 
 int network_close(server* srv){
+	size_t i;
+	for (i = 0; i < srv->srv_sockets.used; i++){
+		server_socket* srv_socket = srv->srv_sockets.ptr[i];
 
+		if (srv_socket->fd != -1){
+			if (srv_socket->fde_ndx != -1){
+				fdevent_event_del(srv->ev, &(srv_socket->fde_ndx), srv_socket->fd);
+				fdevent_unregister(srv->ev, srv_socket->fd);
+			}
+			close(srv_socket->fd);
+		}
+		buffer_free(srv_socket->srv_token);
+		free(srv_socket);
+	}
+	free(srv->srv_sockets.ptr);
+	return 0;
+}
+
+static handler_t network_server_handle_fdevent(server* srv, void* context, int revents){
+
+	return HANDLER_GO_ON;
 }
 
 int network_register_fdevents(server* srv){
+	if (-1 == fdevent_reset(srv->ev))
+		return -1;
+	if (srv->sockets_disabled)	return 0;
 
+	size_t i;
+	for (i = 0; i < srv->srv_sockets.used; i++){
+		server_socket* srv_socket = srv->srv_sockets.ptr[i];
+		fdevent_register(srv->ev, srv_socket->fd, network_server_handle_fdevent, srv_socket);
+		fdevent_event_set(srv->ev, &(srv_socket->fde_ndx), srv_socket->fd, FDEVENT_IN);
+	}
+	return 0;
 }

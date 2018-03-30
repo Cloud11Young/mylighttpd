@@ -28,6 +28,8 @@ void buffer_append_int(buffer* b, intmax_t val);
 void buffer_append_string_len(buffer* b, const char* s, size_t s_len);
 char* buffer_string_prepare_append(buffer* b, size_t size);
 
+int buffer_is_equal(const buffer* a, const buffer* b);
+int buffer_is_equal_string(const buffer* a, const char* s, size_t b_len);
 void buffer_commit(buffer* b, size_t size);
 
 #define LI_ITOSTRING_LENGTH (2 + (8 * sizeof(intmax_t) * 31 + 99) / 100)
