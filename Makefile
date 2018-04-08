@@ -1,4 +1,5 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o
+
 time=$(shell date)
 server:$(targets)
 	@echo "$(time)"
@@ -29,5 +30,7 @@ mnetwork_backends.o:mnetwork_backends.c mnetwork_backends.h
 	gcc -c mnetwork_backends.c
 mfdevent_select.o:mfdevent_select.c mfdevent.h
 	gcc -c mfdevent_select.c
+mfdevent_poll.o:mfdevent_poll.o mfdevent.h
+	gcc -c mfdevent_poll.c
 clean:
 	rm -f $(targets)
