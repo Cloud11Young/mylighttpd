@@ -87,7 +87,38 @@ int fdevent_open_cloexec(const char* filename, int flags, mode_t mode){
 
 
 void fd_close_on_exec(int fd){
+#ifdef FD_CLOEXEC
+	if (fd < 0)	return;
+	force_assert(-1 != fcntl(fd, F_SETFD, FD_CLOEXEC));
+#else
+	UNUSED(fd);
+#endif
+}
 
+int fdevent_fcntl_set(fdevents* ev, int fd){
+	return (ev && ev->fcntl_set) ? ev->fcntl_set(ev, fd) : 0;
+}
+
+int fdevent_fcntl_set_nb(fdevents* ev, int fd){
+	if (ev && ev->fcntl_set)	return ev->fcntl_set(ev, fd);
+#ifdef O_NONBLOCK
+	return fcntl(fd, F_SETFL, O_NONBLOCK | O_RDWR);
+#else
+	return 0;
+#endif
+}
+
+int fdevent_fcntl_set_nb_cloexec(fdevents* ev, int fd){
+	fd_close_on_exec(fd);
+	return fdevent_fcntl_set_nb(ev, fd);
+}
+
+int fdevent_fcntl_set_nb_cloexec_sock(fdevents* ev, int fd){
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+	return (ev && ev->fcntl_set) ? ev->fcntl_set(ev, fd) : 0;
+#else
+	return fdevent_fcntl_set_nb_cloexec(ev, fd);
+#endif
 }
 
 int fdevent_socket_nb_cloexec(int domain, int type, int protocol){
@@ -183,4 +214,20 @@ int fdevent_unregister(fdevents* ev, int fd){
 	fdnode_free(fdn);
 	ev->fdarray[fd] = NULL;
 	return 0;
+}
+
+int fdevent_poll(fdevents* ev, time_t timeout){
+
+}
+
+int fdevent_event_next_fdndx(fdevents* ev, size_t ndx){
+
+}
+
+int fdevent_event_get_fd(fdevents* ev, size_t ndx){
+
+}
+
+int fdevent_event_get_revent(fdevents* ev, size_t ndx){
+
 }

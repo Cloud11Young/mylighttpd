@@ -1,4 +1,4 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o
 
 time=$(shell date)
 server:$(targets)
@@ -32,5 +32,15 @@ mfdevent_select.o:mfdevent_select.c mfdevent.h
 	gcc -c mfdevent_select.c
 mfdevent_poll.o:mfdevent_poll.o mfdevent.h
 	gcc -c mfdevent_poll.c
+mfdevent_linux_sysepoll.o:mfdevent_linux_sysepoll.c mfdevent.h
+	gcc -c mfdevent_linux_sysepoll.c
+mfdevent_solaris_devpoll.o:mfdevent_solaris_devpoll.c mfdevent.h
+	gcc -c mfdevent_solaris_devpoll.c
+mfdevent_solaris_port.o:mfdevent_solaris_port.c mfdevent.h
+	gcc -c mfdevent_solaris_port.c
+mfdevent_libev.o:mfdevent_libev.c mfdevent.h
+	gcc -c mfdevent_libev.c
+mfdevent_freebsd_kqueue.o:mfdevent_freebsd_kqueue.c mfdevent.h
+	gcc -c mfdevent_freebsd_kqueue.c
 clean:
 	rm -f $(targets)

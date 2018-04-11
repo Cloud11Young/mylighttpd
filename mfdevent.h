@@ -58,22 +58,33 @@ typedef struct fdevents{
 	size_t size;
 	buffer_int unused;
 #endif
-	int(*reset)(struct fdevents* ev);
+#ifdef USE_LINUX_EPOLL
+	int epoll_fd;
+	struct epoll_event* epoll_events;
+#endif
+	int (*fcntl_set)(struct fdevents* ev, int fd);
+	int (*reset)(struct fdevents* ev);
 	int (*event_set)(struct fdevents* ev, int fde_ndx, int fd, int events);
 	int (*event_del)(struct fdevents* ev, int fde_ndx, int fd);
+	int (*poll)(struct fdevents* ev, time_t timeout);
+	int (*free)(struct fdevents* ev);
+	int (*event_get_fd)(struct fdevents* ev, size_t ndx);
+	int (*event_get_revent)(struct fdevents* ev, size_t ndx);
+	int (*event_next_fdndx)(struct fdevents* ev, size_t ndx);
 }fdevents;
 
 fdevents* fdevent_init(struct server* srv, size_t maxfds, fdevent_handler_t type);
 int fdevent_reset(fdevents* ev);
 
-fdevent_handler fdevent_get_handler(fdevents* ev, int fd);
-fdevent_handler fdevent_get_context(fdevents* ev, int fd);
-
-
 int fdevent_open_cloexec(const char* filename, int flags, mode_t mode);
 
+int fdevent_fcntl_set(fdevents* ev, int fd);
+int fdevent_fcntl_set_nb(fdevents* ev, int fd);
+int fdevent_fcntl_set_nb_cloexec(fdevents* ev, int fd);
+int fdevent_fcntl_set_nb_cloexec_sock(fdevents* ev, int fd);
 int fdevent_socket_nb_cloexec(int domain, int type, int protocol);
 int fdevent_socket_cloexec(int domain, int type, int protocol);
+
 
 void fdevent_event_set(fdevents* ev, int* fde_ndx, int fd, int events);
 void fdevent_event_add(fdevents* ev, int* fde_ndx, int fd, int events);
@@ -82,8 +93,17 @@ void fdevent_event_del(fdevents* ev, int* fde_ndx, int fd);
 
 int fdevent_register(fdevents* ev, int fd, fdevent_handler handler, void* ctx);
 int fdevent_unregister(fdevents* ev, int fd);
+fdevent_handler fdevent_get_handler(fdevents* ev, int fd);
+void* fdevent_get_context(fdevents* ev, int fd);
+
 
 void fd_close_on_exec(int fd);
+
+int fdevent_poll(fdevents* ev, time_t timeout);
+int fdevent_event_next_fdndx(fdevents* ev, size_t ndx);
+int fdevent_event_get_fd(fdevents* ev, size_t ndx);
+int fdevent_event_get_revent(fdevents* ev, size_t ndx);
+
 
 int fdevent_select_init(fdevents *ev);
 int fdevent_poll_init(fdevents *ev);
