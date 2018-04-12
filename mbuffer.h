@@ -20,6 +20,8 @@ void buffer_reset(buffer* b);
 void buffer_copy_string(buffer* b, const char* s);
 void buffer_copy_buffer(buffer* b, const buffer* src);
 
+void buffer_copy_string_len(buffer* b, const char* s, size_t s_len);
+
 int buffer_is_empty(const buffer* b);
 int buffer_string_is_empty(const buffer* b);
 char* buffer_string_prepare_copy(buffer* b, size_t size);
@@ -31,6 +33,9 @@ char* buffer_string_prepare_append(buffer* b, size_t size);
 int buffer_is_equal(const buffer* a, const buffer* b);
 int buffer_is_equal_string(const buffer* a, const char* s, size_t b_len);
 void buffer_commit(buffer* b, size_t size);
+
+void buffer_append_string(buffer* b, const char* s);
+void buffer_append_strftime(buffer* b, const char* format, const struct tm* tm);
 
 #define LI_ITOSTRING_LENGTH (2 + (8 * sizeof(intmax_t) * 31 + 99) / 100)
 

@@ -90,6 +90,11 @@ typedef struct server{
 	specific_config** config_storage;
 	server_config	  srvconf;
 
+	enum{ ERRORLOG_PIPE, ERRORLOG_FD, ERRORLOG_FILE, ERRORLOG_SYSLOG } errorlog_mode;
+	int errorlog_fd;
+	buffer* errorlog_buf;
+
+	
 	fdevents* ev;
 
 	int	max_fds;
@@ -98,7 +103,8 @@ typedef struct server{
 	int sockets_disabled;
 
 	time_t cur_ts;
-
+	time_t last_generated_debug_ts;
+	buffer* ts_debug_str;
 	gid_t gid;
 	uid_t uid;
 

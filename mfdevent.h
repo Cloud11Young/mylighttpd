@@ -93,6 +93,9 @@ void fdevent_event_del(fdevents* ev, int* fde_ndx, int fd);
 
 int fdevent_register(fdevents* ev, int fd, fdevent_handler handler, void* ctx);
 int fdevent_unregister(fdevents* ev, int fd);
+void fdevent_sched_run(struct server* srv, fdevents* ev);
+void fdevent_sched_close(fdevents* ev, int fd, int issock);
+
 fdevent_handler fdevent_get_handler(fdevents* ev, int fd);
 void* fdevent_get_context(fdevents* ev, int fd);
 
@@ -103,6 +106,8 @@ int fdevent_poll(fdevents* ev, time_t timeout);
 int fdevent_event_next_fdndx(fdevents* ev, size_t ndx);
 int fdevent_event_get_fd(fdevents* ev, size_t ndx);
 int fdevent_event_get_revent(fdevents* ev, size_t ndx);
+
+
 
 
 int fdevent_select_init(fdevents *ev);

@@ -217,17 +217,39 @@ int fdevent_unregister(fdevents* ev, int fd){
 }
 
 int fdevent_poll(fdevents* ev, time_t timeout){
-
+	return (ev && ev->poll) ? ev->poll(ev, timeout) : -1;
 }
 
 int fdevent_event_next_fdndx(fdevents* ev, size_t ndx){
-
+	return (ev && ev->event_next_fdndx) ? ev->event_next_fdndx(ev, ndx) : -1;
 }
 
 int fdevent_event_get_fd(fdevents* ev, size_t ndx){
-
+	return (ev&& ev->event_get_fd) ? ev->event_get_fd(ev, ndx) : -1;
 }
 
 int fdevent_event_get_revent(fdevents* ev, size_t ndx){
+	return (ev && ev->event_get_revent) ? ev->event_get_revent(ev, ndx) : -1;
+}
+
+fdevent_handler fdevent_get_handler(fdevents* ev, int fd){
+	if (ev->fdarray[fd] == NULL)	return NULL;
+	if (ev->fdarray[fd]->fd != fd)	return NULL;
+
+	return ev->fdarray[fd]->handler;
+}
+
+void* fdevent_get_context(fdevents* ev, int fd){
+	if (ev->fdarray[fd] == NULL)	return NULL;
+	if (ev->fdarray[fd]->fd != fd)	return NULL;
+
+	return ev->fdarray[fd]->ctx;
+}
+
+void fdevent_sched_run(server* srv, fdevents* ev){
+
+}
+
+void fdevent_sched_close(fdevents* ev, int fd, int issock){
 
 }

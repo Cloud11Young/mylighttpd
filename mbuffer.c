@@ -47,16 +47,25 @@ void buffer_reset(buffer* b){
 }
 
 void buffer_copy_string(buffer* b, const char* s){
-	if (b == NULL){
-		b = buffer_init_string(s);
-		return;
-	}
-	if (b->size < strlen(s) + 1){
-		b->ptr = realloc(b, strlen(s) + 1);
-		b->size = strlen(s) + 1;
-	}
-	memcpy(b->ptr, s, b->size);
-	b->used = b->size;	
+// 	if (b == NULL){
+// 		b = buffer_init_string(s);
+// 		return;
+// 	}
+// 	if (b->size < strlen(s) + 1){
+// 		b->ptr = realloc(b, strlen(s) + 1);
+// 		b->size = strlen(s) + 1;
+// 	}
+// 	memcpy(b->ptr, s, b->size);
+// 	b->used = b->size;	
+	buffer_copy_string_len(b, s, (s == NULL) ? 0 : strlen(s));
+}
+
+void buffer_copy_string_len(buffer* b, const char* s, size_t s_len){
+	force_assert(NULL != b);
+	force_assert(NULL != s && s_len != 0);
+	buffer_string_prepare_copy(b, s_len);
+	if (0 != s_len) memcpy(b->ptr, s, s_len);
+	buffer_commit(b, s_len);
 }
 
 void buffer_copy_buffer(buffer* b, const buffer* src){
@@ -208,4 +217,19 @@ int buffer_is_equal_string(const buffer* a, const char* s, size_t b_len){
 	if ('\0' != a->ptr[a->used - 1])	return 0;
 
 	return 1;
+}
+
+void buffer_append_string(buffer* b, const char* s){
+	int nlen = 0;
+	if (s != NULL)
+		nlen = strlen(s);
+	return buffer_append_string_len(b, s, nlen);
+}
+
+void buffer_append_strftime(buffer* b, const char* format, const struct tm* tm){
+	force_assert(NULL != b);
+	force_assert(NULL != tm);
+
+	int r = buffer_string_prepare_append(b, 255);
+	strftime(b->ptr, buffer_string_space(b), format, tm);
 }
