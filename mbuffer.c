@@ -1,6 +1,8 @@
 #include "mbuffer.h"
 #include <stdlib.h>
 
+static char hex_chars[] = "0123456789abcdef";
+
 buffer* buffer_init(){
 	buffer* b = malloc(sizeof(*b));
 	force_assert(b);
@@ -230,6 +232,93 @@ void buffer_append_strftime(buffer* b, const char* format, const struct tm* tm){
 	force_assert(NULL != b);
 	force_assert(NULL != tm);
 
-	int r = buffer_string_prepare_append(b, 255);
-	strftime(b->ptr, buffer_string_space(b), format, tm);
+	char* buf;
+	size_t r;
+	buf = buffer_string_prepare_append(b, 255);
+	r = strftime(buf, buffer_string_space(b), format, tm);
+	if (r == 0 || r > buffer_string_space(b)){
+		buf = buffer_string_prepare_append(b, 4095);
+		r = strftime(buf, buffer_string_space(b), format, tm);
+	}
+
+	if (r > buffer_string_space(b))	r = 0;
+	buffer_commit(b, r);
+}
+
+void buffer_append_string_c_escaped(buffer* b, const char* s, size_t s_len){
+	unsigned char *ds, *buf;
+	size_t d_len,ndx;
+
+	force_assert(NULL != b);
+	force_assert(NULL != s || 0 == s_len);
+
+	if (s_len == 0)	return;
+	for (ds = (unsigned char*)s, d_len = 0, ndx = 0; ndx < s_len; ds++, ndx++){
+		if (*ds < 0x20 || *ds > 0x7f){
+			switch (*ds){
+			case '\t':
+			case '\n':
+			case '\r':
+				d_len += 2;
+				break;
+			default:
+				d_len += 4;
+				break;
+			}
+		}else{
+			d_len++;
+		}
+	}
+	buf = buffer_string_prepare_append(b, d_len);
+	buffer_commit(b, d_len);
+	force_assert(buf[0] == '\0');
+
+	for (ds=(unsigned char*)s, d_len = 0, ndx = 0; ndx < s_len; ds++, ndx++){
+		if (*ds < 0x20 || *ds >0x7f){
+			buf[d_len++] = '\\';
+			switch (*ds){
+			case '\t':
+				buf[d_len++] = 't';
+				break;
+			case '\n':
+				buf[d_len++] = 'n';
+				break;
+			case '\r':
+				buf[d_len++] = 'r';
+				break;
+			default:
+				buf[d_len++] = 'x';
+				buf[d_len++] = hex_chars[(*ds) >> 4 & 0x0F];
+				buf[d_len++] = hex_chars[(*ds) & 0x0F];
+				break;
+			}
+		}else{
+			buf[d_len] = *ds;
+		}
+	}
+}
+
+void buffer_append_uint_hex(buffer* b, uintmax_t value){
+	force_assert(NULL != b);
+	char* buf;
+	int shift = 0;
+	uintmax_t copy = value;
+	do{
+		copy >>= 8;
+		shift += 2;
+	} while (copy > 0);
+
+	buf = buffer_string_prepare_append(b, shift);
+	buffer_commit(b, shift);	
+	
+	shift <<= 2;
+	while (shift > 0){
+		shift -= 4;
+		*(buf++) = hex_chars[(value >> shift) & 0x0F];	
+	}
+}
+
+int buffer_string_space(buffer* b){
+	if (NULL == b || 0 == b->size)	return 0;
+	return b->size - b->used - 1;
 }

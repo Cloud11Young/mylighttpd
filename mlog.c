@@ -112,7 +112,23 @@ static int log_write(server* srv, buffer* s){
 }
 
 int log_error_open(server* srv){
+#ifdef HAVE_SYSLOG_H
+	openlog("mylighttpd", LOG_CONS | LOG_PID, LOG_DAEMON);
+#endif
+	srv->errorlog_mode = ERRORLOG_FD;
+	srv->errorlog_fd = STDERR_FILENO;
 
+	if (srv->srvconf.errorlog_use_syslog){
+		srv->errorlog_mode = ERRORLOG_SYSLOG;
+	}else if (!buffer_string_is_empty(srv->srvconf.errorlog_file)){
+		srv->errorlog_mode = ERRORLOG_FILE;
+		const char* sfile = srv->srvconf.errorlog_file->ptr;
+
+		if (-1 == (srv->errorlog_fd = open_logfile_or_pipe(sfile))){
+			return -1;
+		}
+		srv->errorlog_sfile[0]='|')
+	}
 }
 
 int log_error_close(server* srv){
