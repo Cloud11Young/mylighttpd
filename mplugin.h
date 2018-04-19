@@ -4,6 +4,10 @@
 #include "mbase.h"
 #include "msettings.h"
 
+typedef struct plugin{
+
+}plugin;
+
 int plugins_load(server* srv);
 
 void plugins_free(server* srv);

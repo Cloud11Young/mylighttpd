@@ -41,6 +41,11 @@ typedef struct server_config{
 	buffer* changeroot;
 	buffer* network_backend;
 	
+	buffer* errorlog_file;
+	buffer* breakagelog_file;
+	unsigned short errorlog_use_syslog;
+
+	unsigned short dont_daemonize;
 	int max_conns;
 	unsigned short preflight_check;
 
