@@ -780,7 +780,7 @@ int main(int argc, char* argv[]){
 			}
 		}
 		int n;
-		if ((n = fdevent_poll(srv, 1000)) > 0){
+		if ((n = fdevent_poll(srv->ev, 1000)) > 0){
 			int revents;
 			int fd_ndx = -1;
 			int fd;

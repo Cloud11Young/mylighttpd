@@ -44,6 +44,8 @@ typedef struct server_config{
 	buffer* errorlog_file;
 	buffer* breakagelog_file;
 	unsigned short errorlog_use_syslog;
+		
+	array* modules;
 
 	unsigned short dont_daemonize;
 	int max_conns;
@@ -89,6 +91,12 @@ typedef struct server_socket_array{
 	size_t size;
 }server_socket_array;
 
+typedef struct buffer_plugin{
+	void* ptr;
+	size_t used;
+	size_t size;
+}buffer_plugin;
+
 typedef struct server{
 	server_socket_array srv_sockets;
 
@@ -99,7 +107,9 @@ typedef struct server{
 	int errorlog_fd;
 	buffer* errorlog_buf;
 
-	
+	buffer_plugin plugins;
+	void* plugin_slots;
+
 	fdevents* ev;
 
 	int	max_fds;
