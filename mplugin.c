@@ -135,13 +135,105 @@ void plugins_free(server* srv){
 }
 
 int plugins_call_init(server* srv){
+	size_t n;
+	plugin** ps;
+	ps = (plugin**)srv->plugins.ptr;
 
+	srv->plugin_slots = calloc(PLUGIN_FUNC_SIZEOF, sizeof(ps));
+	force_assert(srv->plugin_slots != NULL);
+
+	for (n = 0; n < srv->plugins.used; n++){
+		plugin* p;
+		p = ps[n];
+
+		size_t j;
+#define PLUGIN_TO_SLOT(x,y)\
+		if (p->y){\
+			plugin** slot = ((plugin***)srv->plugin_slots)[x];\
+			if (!slot){\
+				slot = calloc(PLUGIN_FUNC_SIZEOF, sizeof(*slot));\
+				force_assert(slot != NULL);\
+				((plugin***)srv->plugin_slots)[x] = slot;\
+			}\
+			for (j = 0; j < srv->plugins.used; j++){\
+				if (slot[j])	continue;\
+				slot[j] = p;\
+				break;\
+			}\
+		}
+
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_URI_RAW, handle_uri_raw);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_URI_CLEAN, handle_uri_clean);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_TRIGGER, handle_trigger);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SIGHUP, handle_sighup);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_REQUEST_DONE, handle_request_done);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SUBREQUEST, handle_subrequest);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SUBREQUEST_START, handle_subrequest_start);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_RESPONSE_START, handle_response_start);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_CONNECTION_CLOSE, handle_connection_close);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_DOCROOT, handle_docroot);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_PHYSICAL, handle_physical);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_CONNECTION_RESET, connection_reset);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_CLEANUP, cleanup);
+		PLUGIN_TO_SLOT(PLUGIN_FUNC_SET_DEFAULTS, set_defaults);
+#undef PLUGIN_TO_SLOT
+
+	}
 }
 
-int plugins_call_cleanup(server* srv){
+handler_t plugins_call_cleanup(server* srv){
 
 }
 
 handler_t plugins_call_set_defaults(server* srv){
+
+}
+
+
+handler_t plugins_call_handle_sighup(server* srv){
+
+}
+
+handler_t plugins_call_handle_trigger(server* srv){
+
+}
+
+handler_t plugins_call_handle_uri_clean(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_uri_raw(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_request_done(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_connection_close(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_subrequest(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_subrequest_start(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_response_start(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_docroot(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_physical(server* srv, connection* con){
+
+}
+
+handler_t plugins_call_connection_reset(server* srv, connection* con){
 
 }

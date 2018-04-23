@@ -39,4 +39,15 @@ handler_t plugins_call_cleanup(server* srv);
 handler_t plugins_call_handle_sighup(server* srv);
 handler_t plugins_call_handle_trigger(server* srv);
 
+handler_t plugins_call_handle_uri_clean(server* srv,connection* con);
+handler_t plugins_call_uri_raw(server* srv, connection* con);
+handler_t plugins_call_request_done(server* srv, connection* con);
+handler_t plugins_call_connection_close(server* srv, connection* con);
+handler_t plugins_call_subrequest(server* srv, connection* con);
+handler_t plugins_call_subrequest_start(server* srv, connection* con);
+handler_t plugins_call_response_start(server* srv, connection* con);
+handler_t plugins_call_docroot(server* srv, connection* con);
+handler_t plugins_call_physical(server* srv, connection* con);
+handler_t plugins_call_connection_reset(server* srv, connection* con);
+
 #endif
