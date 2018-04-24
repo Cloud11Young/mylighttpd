@@ -2,6 +2,10 @@
 #include <dlfcn.h>
 #include <errno.h>
 
+typedef struct{
+	PLUGIN_DATA;
+}plugin_data;
+
 typedef enum{
 	PLUGIN_FUNC_UNSET,
 	PLUGIN_FUNC_HANDLE_URI_CLEAN,
@@ -178,62 +182,100 @@ int plugins_call_init(server* srv){
 		PLUGIN_TO_SLOT(PLUGIN_FUNC_SET_DEFAULTS, set_defaults);
 #undef PLUGIN_TO_SLOT
 
+		if (p->init){
+			if (NULL == (p->data = p->init())){
+				log_error_write(srv, __FILE__, __LINE__, "s",
+					"plugin-init failed for module ", p->name);
+				return HANDLER_ERROR;
+			}
+
+			((plugin_data*)p->data)->id = n + 1;
+
+// 			if (p->version != LIGGHTTPD_VERSION_ID){
+// 				log_error_write(srv, __FILE__, __LINE__, "s",
+// 					"plugin-version doesn't match lighttpd version for", p->name);
+// 				return HANDLER_ERROR;
+// 			}
+		}else{
+			p->data = NULL;
+		}
 	}
-}
-
-handler_t plugins_call_cleanup(server* srv){
-
-}
-
-handler_t plugins_call_set_defaults(server* srv){
-
+	return HANDLER_GO_ON;
 }
 
 
-handler_t plugins_call_handle_sighup(server* srv){
+#define PLUGIN_TO_SLOT(x,y)\
+	handler_t plugins_call_##y(server* srv){\
+		plugin** slot;\
+		size_t i;\
+		handler_t r;\
+		\
+		if (!srv->plugin_slots)	return HANDLER_GO_ON;\
+		slot = ((plugin***)srv->plugin_slots)[x];\
+		if (!slot)	return HANDLER_GO_ON;\
+		\
+		for (i = 0; i < srv->plugins.used && slot[i]; i++){\
+			plugin* p = slot[i];\
+			switch (r = p->y(srv, p->data)){\
+			case HANDLER_GO_ON:\
+				break;\
+			case HANDLER_COMEBACK:\
+			case HANDLER_FINISHED:\
+			case HANDLER_WAIT_FOR_EVENT:\
+			case HANDLER_WAIT_FOR_FD:\
+			case HANDLER_ERROR:\
+				return r;\
+			default:\
+				log_error_write(srv, __FILE__, __LINE__, "sbs", #y, p->name, "unknown state");\
+				return HANDLER_ERROR;\
+			}\
+		}\
+		return HANDLER_GO_ON;\
+	}
 
+PLUGIN_TO_SLOT(PLUGIN_FUNC_SET_DEFAULTS, set_defaults);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_CLEANUP, cleanup);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SIGHUP, handle_sighup);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_TRIGGER, handle_trigger);
+#undef PLUGIN_TO_SLOT
+
+#define PLUGIN_TO_SLOT(x,y)\
+	handler_t plugins_call_##y(server* srv, connection* con){\
+	plugin** slot; \
+	size_t i; \
+	handler_t r;\
+	\
+	if (!srv->plugin_slots)	return HANDLER_GO_ON;\
+	slot = ((plugin***)srv->plugin_slots)[x];\
+	if (!slot)	return HANDLER_GO_ON;\
+	for (i = 0; i < srv->plugins.used && slot[i]; i++){\
+		plugin* p = slot[i];\
+		\
+		switch (r = p->y(srv, con, p->data)){\
+		case HANDLER_GO_ON:\
+			break;\
+		case HANDLER_COMEBACK:\
+		case HANDLER_FINISHED:\
+		case HANDLER_WAIT_FOR_EVENT:\
+		case HANDLER_WAIT_FOR_FD:\
+		case HANDLER_ERROR:\
+			return r;\
+		default:\
+			log_error_write(srv, __FILE__, __LINE__, "sbs", #y, p->name, "unknown state");\
+			return HANDLER_ERROR;\
+		}\
+	}\
+	return HANDLER_GO_ON;\
 }
 
-handler_t plugins_call_handle_trigger(server* srv){
-
-}
-
-handler_t plugins_call_handle_uri_clean(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_uri_raw(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_request_done(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_connection_close(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_subrequest(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_subrequest_start(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_response_start(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_docroot(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_physical(server* srv, connection* con){
-
-}
-
-handler_t plugins_call_connection_reset(server* srv, connection* con){
-
-}
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_URI_CLEAN, handle_uri_clean);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_URI_RAW, handle_uri_raw);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_REQUEST_DONE, handle_request_done);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_CONNECTION_CLOSE, handle_connection_close);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SUBREQUEST, handle_subrequest);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_SUBREQUEST_START, handle_subrequest_start);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_RESPONSE_START, handle_response_start);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_DOCROOT, handle_docroot);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_HANDLE_PHYSICAL, handle_physical);
+PLUGIN_TO_SLOT(PLUGIN_FUNC_CONNECTION_RESET, connection_reset);
+#undef PLUGIN_TO_SLOT

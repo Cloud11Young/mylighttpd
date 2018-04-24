@@ -11,16 +11,34 @@
 #include "msplaytree.h"
 #include "mchunk.h"
 
+typedef struct stat_cache_entry{
+	buffer* name;
+	buffer* etag;
+
+	struct stat st;
+	time_t stat_ts;
+
+	char is_symlink;
+
+	int dir_version;
+
+	buffer* content_type;
+}stat_cache_entry;
+
+
 typedef struct stat_cache {
 	splay_tree* files;
-	buffer* dirname;
+	buffer* dir_name;
+
 #ifdef HAVE_FAM_H
 	splay_tree* dirs;
 	FAMConnection fam;
 	int fam_fcce_ndx;
 #endif
+
 	buffer* hash_key;
 }stat_cache;
+
 
 typedef struct specific_config{
 	buffer* document_root;
@@ -30,7 +48,14 @@ typedef struct specific_config{
 	unsigned short ssl_enabled;
 	unsigned short defer_accept;
 	int listen_backlog;
+
+	unsigned short follow_symlink;
+
+	enum{
+
+	}stat_cache_engine;
 }specific_config;
+
 
 typedef struct server_config{
 	unsigned short port;
@@ -54,14 +79,20 @@ typedef struct server_config{
 	unsigned short high_precision_timestamps;
 }server_config;
 
+
 typedef struct connection{
 	int in_joblist;
+
+	specific_config conf;
 }connection;
+
 
 typedef struct connections{
 	connection** ptr;
 	size_t used;
 	size_t size;
+
+
 }connections;
 
 
@@ -76,6 +107,7 @@ typedef union sock_addr{
 	struct sockaddr plain;	
 }sock_addr;
 
+
 typedef struct server_socket{
 	sock_addr addr;
 	int fd;
@@ -84,6 +116,7 @@ typedef struct server_socket{
 	buffer* srv_token;
 }server_socket;
 
+
 typedef struct server_socket_array{
 	server_socket** ptr;
 
@@ -91,11 +124,13 @@ typedef struct server_socket_array{
 	size_t size;
 }server_socket_array;
 
+
 typedef struct buffer_plugin{
 	void* ptr;
 	size_t used;
 	size_t size;
 }buffer_plugin;
+
 
 typedef struct server{
 	server_socket_array srv_sockets;

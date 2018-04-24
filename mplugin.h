@@ -4,6 +4,8 @@
 #include "mbase.h"
 #include "msettings.h"
 
+#define PLUGIN_DATA		size_t id
+
 typedef struct plugin{
 	size_t version;
 	buffer* name;
