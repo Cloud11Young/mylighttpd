@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include "mbase.h"
 #include "mstat_cache.h"
+#include <errno.h>
 
 #ifdef HAVE_FAM_H
 typedef struct fam_dir_entry{
@@ -9,6 +10,28 @@ typedef struct fam_dir_entry{
 	int version;
 }fam_dir_entry;
 #endif
+
+
+static stat_cache_entry* stat_cache_entry_init(){
+	stat_cache_entry* sce = calloc(1, sizeof(*sce));
+	force_assert(sce != NULL);
+
+	sce->name = buffer_init();
+	sce->etag = buffer_init();
+	sce->content_type = buffer_init();
+	return sce;
+}
+
+
+static void stat_cache_entry_free(void* data){
+	stat_cache_entry* sce = (stat_cache_entry*)data;
+	if (!sce)	return;
+
+	buffer_free(sce->name);
+	buffer_free(sce->etag);
+	buffer_free(sce->content_type);
+	free(sce);
+}
 
 
 stat_cache* stat_cache_init(){
@@ -116,7 +139,7 @@ handler_t stat_cache_get_entry(server* srv, connection* con, buffer* name, stat_
 			errno = ENOTDIR;
 			return HANDLER_ERROR;
 		}
-		if (-1 == (fd = open(name, O_RDONLY))){
+		if (-1 == (fd = open(name->ptr, O_RDONLY))){
 			return HANDLER_ERROR;
 		}
 		close(fd);
@@ -132,7 +155,7 @@ handler_t stat_cache_get_entry(server* srv, connection* con, buffer* name, stat_
 		}else{
 			size_t osize;
 			osize = splaytree_size(sc->files);
-			sc->files = splaytree_insert(sc->files, ndx, sce);
+			sc->files = splaytree_insert(sc->files, file_ndx, sce);
 			force_assert(osize + 1 == splaytree_size(sc->files));
 		}
 
@@ -182,8 +205,8 @@ handler_t stat_cache_get_entry(server* srv, connection* con, buffer* name, stat_
 		if (buffer_string_is_empty(sce->content_type)){
 			size_t namelen = buffer_string_length(name);
 			size_t k;
-			for (k = 0; k < con->conf.mimetypes.used; k++){
-				data_string* ds = (data_string*)con->conf.mimetypes.data[k];
+			for (k = 0; k < con->conf.mimetypes->used; k++){
+				data_string* ds = (data_string*)con->conf.mimetypes->data[k];
 				buffer* type = ds->key;
 				size_t typelen = buffer_string_length(ds->key);
 
@@ -245,7 +268,7 @@ handler_t stat_cache_get_entry(server* srv, connection* con, buffer* name, stat_
 	}
 #endif
 	*ret_sce = sce;
-	return HANDLE_GO_ON;
+	return HANDLER_GO_ON;
 }
 
 handler_t stat_cache_handle_fdevent(server* srv, void* fce, int revent){

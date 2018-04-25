@@ -10,6 +10,7 @@
 #include "marray.h"
 #include "msplaytree.h"
 #include "mchunk.h"
+#include "metag.h"
 
 typedef struct stat_cache_entry{
 	buffer* name;
@@ -51,9 +52,7 @@ typedef struct specific_config{
 
 	unsigned short follow_symlink;
 
-	enum{
-
-	}stat_cache_engine;
+	array* mimetypes;
 }specific_config;
 
 
@@ -77,6 +76,15 @@ typedef struct server_config{
 	unsigned short preflight_check;
 
 	unsigned short high_precision_timestamps;
+
+	enum{
+		STAT_CACHE_ENGINE_UNSET,
+		STAT_CACHE_ENGINE_NONE,
+		STAT_CACHE_ENGINE_SIMPLE,
+#ifdef HAVE_FAM_H
+		STAT_CACHE_ENGINE_FAM
+#endif
+	}stat_cache_engine;
 }server_config;
 
 
@@ -84,6 +92,8 @@ typedef struct connection{
 	int in_joblist;
 
 	specific_config conf;
+
+	etag_flags_t etag_flags;
 }connection;
 
 

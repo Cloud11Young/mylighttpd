@@ -8,6 +8,7 @@ typedef struct tree_node{
 	void* data;
 }splay_tree;
 
+splay_tree* splaytree_insert(splay_tree* t, int key, void* data);
 splay_tree* splaytree_splay(splay_tree* t, int key);
 splay_tree* splaytree_delete(splay_tree* t, int key);
 #endif
