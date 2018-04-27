@@ -88,25 +88,7 @@ typedef struct server_config{
 }server_config;
 
 
-typedef struct connection{
-	int in_joblist;
-
-	specific_config conf;
-
-	etag_flags_t etag_flags;
-}connection;
-
-
-typedef struct connections{
-	connection** ptr;
-	size_t used;
-	size_t size;
-
-
-}connections;
-
-
-typedef union sock_addr{	
+typedef union sock_addr{
 #ifdef HAVE_IPV6
 	struct sockaddr_in6 ipv6;
 #endif
@@ -114,7 +96,7 @@ typedef union sock_addr{
 #ifdef HAVE_SYS_UN_H
 	struct sockaddr_un un;
 #endif
-	struct sockaddr plain;	
+	struct sockaddr plain;
 }sock_addr;
 
 
@@ -133,6 +115,63 @@ typedef struct server_socket_array{
 	size_t used;
 	size_t size;
 }server_socket_array;
+
+
+typedef enum{
+	CON_STATE_CONNECT,
+	CON_STATE_REQUEST_START,
+	CON_STATE_READ,
+	CON_STATE_REQUEST_END,
+	CON_STATE_READ_POST,
+	CON_STATE_HANDLE_REQUEST,
+	CON_STATE_RESPONSE_START,
+	CON_STATE_WRITE,
+	CON_STATE_RESPONSE_END,
+	CON_STATE_ERROR,
+	CON_STATE_CLOSE
+}connection_state_t;
+
+typedef struct request{
+	buffer* orig_uri;
+}request;
+
+typedef struct {
+	buffer* authority;
+	buffer* path;
+	buffer* query;
+}request_uri;
+
+typedef struct connection{
+	connection_state_t state;
+
+	int in_joblist;
+
+	specific_config conf;
+
+	etag_flags_t etag_flags;
+
+	int ndx;
+
+	int fd;
+	int fde_ndx;
+	server_socket* srv_socket;
+	sock_addr dst_addr;
+	buffer* dst_addr_buf;
+
+	time_t connection_start;
+
+	request request;
+	request_uri uri;
+}connection;
+
+
+typedef struct connections{
+	connection** ptr;
+	size_t used;
+	size_t size;
+
+
+}connections;
 
 
 typedef struct buffer_plugin{

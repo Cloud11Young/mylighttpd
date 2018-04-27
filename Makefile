@@ -1,4 +1,4 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o
 
 time=$(shell date)
 server:$(targets)
@@ -42,5 +42,13 @@ mfdevent_libev.o:mfdevent_libev.c mfdevent.h
 	gcc -c mfdevent_libev.c
 mfdevent_freebsd_kqueue.o:mfdevent_freebsd_kqueue.c mfdevent.h
 	gcc -c mfdevent_freebsd_kqueue.c
+metag.o:metag.c metag.h
+	gcc -c metag.c -g
+mconnections.o:mconnections.c mconnections.h
+	gcc -c mconnections.c -g
+minet_ntop_cache.o:minet_ntop_cache.c minet_ntop_cache.h
+	gcc -c minet_ntop_cache.c -g
+mconnection_glue.o:mconnection_glue.c mconnections.h
+	gcc -c mconnection_glue.c -g
 clean:
 	rm -f $(targets)

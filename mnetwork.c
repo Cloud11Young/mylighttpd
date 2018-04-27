@@ -321,3 +321,19 @@ int network_register_fdevents(server* srv){
 	}
 	return 0;
 }
+
+void network_accept_tcp_nagle_disable(const int fd){
+	static int noinherit_tcpnodelay = -1;
+
+	int opt;
+	socklen_t optlen;
+	if (noinherit_tcpnodelay < 0){
+		optlen = sizeof(opt);
+		if (0 == getsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, &optlen)){
+			noinherit_tcpnodelay = !opt;
+			if (opt)	return;
+		}
+	}
+	opt = 1;
+	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &opt, optlen);
+}

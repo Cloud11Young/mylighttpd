@@ -2,6 +2,9 @@
 #include "mbase.h"
 #include "mstat_cache.h"
 #include <errno.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include "metag.h"
 
 #ifdef HAVE_FAM_H
 typedef struct fam_dir_entry{
@@ -33,6 +36,17 @@ static void stat_cache_entry_free(void* data){
 	free(sce);
 }
 
+
+static uint32_t hashme(buffer* b){
+	uint32_t hash = 5381;
+	const char* s;
+	for (s = b->ptr; *s; s++){
+		hash = ((hash << 5) + hash) + *s;
+	}
+
+	hash &= ~(((uint32_t)1) << 31);
+	return hash;
+}
 
 stat_cache* stat_cache_init(){
 	stat_cache* sc = calloc(1, sizeof(*sc));

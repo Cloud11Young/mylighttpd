@@ -13,6 +13,8 @@
 #include "mplugin.h"
 #include "marray.h"
 #include "msettings.h"
+#include "mstat_cache.h"
+#include "mconnections.h"
 
 #ifdef HAVE_GETUID
 #ifndef HAVE_ISSETUGID
@@ -695,7 +697,7 @@ int main(int argc, char* argv[]){
 		return -1;
 	}
 
-	if (NULL == (srv->stat_cache = stat_cache_init())){
+	if (NULL == (srv->stat_cach = stat_cache_init())){
 		log_error_write(srv, __FILE__, __LINE__, "s",
 			"stat-cache could not be setup, dieing.");
 		return -1;
