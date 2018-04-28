@@ -13,5 +13,5 @@ int log_error_cycle(server* srv);
 void openDevNull(int fd);
 int write_all(int fd, const void* buf, size_t count);
 
-
+int log_clock_gettime_realtime(struct timespec* tm);
 #endif

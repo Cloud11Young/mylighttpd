@@ -68,6 +68,7 @@ typedef struct server_config{
 	buffer* errorlog_file;
 	buffer* breakagelog_file;
 	unsigned short errorlog_use_syslog;
+	unsigned short log_state_handling;
 		
 	array* modules;
 
@@ -159,6 +160,13 @@ typedef struct connection{
 	buffer* dst_addr_buf;
 
 	time_t connection_start;
+	time_t request_start;
+	time_t request_start_hp;
+	time_t read_idle_ts;
+
+	int request_count;
+	int loops_per_request;
+	
 
 	request request;
 	request_uri uri;

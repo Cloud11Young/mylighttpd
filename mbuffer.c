@@ -322,3 +322,17 @@ int buffer_string_space(buffer* b){
 	if (NULL == b || 0 == b->size)	return 0;
 	return b->size - b->used - 1;
 }
+
+
+void buffer_move(buffer* b, buffer* src){
+	buffer tmp;
+	if (b == NULL){
+		buffer_reset(src);
+		return;
+	}
+
+	buffer_reset(b);
+	if (src == NULL)	return;
+
+	tmp = *src; *src = *b; *b = tmp;
+}
