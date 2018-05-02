@@ -50,9 +50,16 @@ int buffer_string_length(const buffer* b);
 
 #define CONST_STR_LEN(x) x, (x) ? sizeof(x) - 1 : 0
 #define CONST_BUF_LEN(x) ((x) ? (x)->ptr : NULL), buffer_string_length(x)
+#define BUFFER_APPEND_STRING_CONST(x,y)\
+	buffer_append_string_len(x,y,sizeof(y)-1)
 
 void log_failed_assert(const char* filename, unsigned int line, const char* s);
 
 #define force_assert(x) do{ if(!(x))  log_failed_assert(__FILE__,__LINE__,"assertion failed: " #x); }while(0)
 
+static inline void buffer_append_slash(buffer* b){
+	size_t len = buffer_string_length(b);
+	if (len > 0 && b->ptr[len - 1] != '/')
+		BUFFER_APPEND_STRING_CONST(b, "/");
+}
 #endif

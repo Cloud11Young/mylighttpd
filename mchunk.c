@@ -116,6 +116,64 @@ static off_t chunk_remaining_length(chunk* c){
 	return len - c->offset;
 }
 
+static chunk* chunkqueue_get_append_tempfile(chunkqueue* cq){
+	int fd;
+	chunk* c;
+	buffer* template = buffer_init_string("/var/tmp/lighttpd-upload-xxxxxx");
+
+	if (cq->tempdirs && cq->tempdirs->used){
+		for (errno = EIO; cq->tempdir_idx < cq->tempdirs->used; cq->tempdir_idx++){
+			data_string* ds = (data_string*)cq->tempdirs->data[cq->tempdir_idx];
+			buffer_copy_buffer(template, ds->value);
+			buffer_append_slash(template);
+			buffer_append_string_len(template, CONST_STR_LEN("lighttpd-upload-XXXXXX"));
+
+			if (-1 != (fd = mkstemp(template->ptr)))	break;
+		}
+	}else{
+		fd = mkstemp(template->ptr);
+	}
+	if (fd < 0){
+		buffer_free(template);
+		return NULL;
+	}
+
+	if (0 != fcntl(fd, F_SETFL, (fcntl(fd, F_GETFL, 0) | O_APPEND))){
+		close(fd);
+		buffer_free(template);
+		return NULL;
+	}
+
+	fd_close_on_exec(fd);
+
+	c = chunkqueue_get_unused_chunk(cq);
+	c->type = FILE_CHUNK;
+	c->file.fd = fd;
+	c->file.is_temp = 1;
+	buffer_copy_buffer(c->file.name, template);
+	c->file.length = 0;
+	chunkqueue_append_chunk(cq, c);
+	buffer_free(template);
+	return c;
+}
+
+
+static void chunkqueue_remove_empty_chunks(chunkqueue* cq){
+	chunk* c;
+	chunkqueue_remove_finished_chunks(cq);
+	if (chunkqueue_is_empty(cq))	return;
+
+	for (c = cq->first; c->next; c = c->next){
+		if (0 == chunk_remaining_length(c->next)){
+			chunk* empty = c->next;
+			c->next = empty->next;
+			if (empty == cq->last) cq->last = c;
+
+			chunkqueue_push_unused_chunk(cq, empty);
+		}
+	}
+}
+
 
 chunkqueue* chunkqueue_init(){
 	chunkqueue* cq = calloc(1, sizeof(*cq));
@@ -285,7 +343,7 @@ int chunkqueue_is_empty(chunkqueue* cq){
 }
 
 
-void chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char* mem, size_t len){
+int chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char* mem, size_t len){
 	chunk* dest_c;
 	ssize_t written;
 	do{
@@ -329,7 +387,7 @@ void chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char
 		}else if (errno == EINTR){
 		
 		}else{
-			int retry = (errno == ENOSPC && dest->tempdirs && ++dest->tempdir_idx < dest->tempdirs.used);
+			int retry = (errno == ENOSPC && dest->tempdirs && ++dest->tempdir_idx < dest->tempdirs->used);
 			if (!retry){
 				log_error_write(srv, __FILE__, __LINE__, "sbss",
 					"write() temp-file", dest_c->file.name, "failed", strerror(errno));
@@ -337,8 +395,7 @@ void chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char
 
 			if (0 == chunk_remaining_length(dest_c)){
 				chunkqueue_remove_empty_chunks(dest);
-			}
-			else{
+			}else{
 				int rc = close(dest_c->file.fd);
 				dest_c->file.fd = -1;
 				if (!rc){
@@ -356,6 +413,13 @@ void chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char
 
 
 void chunkqueue_get_memory(chunkqueue* cq, char** mem, size_t* len, size_t minsize, size_t allocsize){
+	force_assert(cq != NULL);
+	char* dummy_mem;
+	size_t dummy_len;
+
+	if (mem == NULL)	mem = &dummy_len;
+	if (dummy_len == 0)	len = &dummy_len;
+
 
 }
 
@@ -381,7 +445,7 @@ void chunkqueue_steal(chunkqueue* dst, chunkqueue* src, off_t len){
 }
 
 
-void chunkqueue_steal_with_tempfiles(server* srv, chunkqueue* dst, chunkqueue* src, off_t len){
+int chunkqueue_steal_with_tempfiles(server* srv, chunkqueue* dst, chunkqueue* src, off_t len){
 
 }
 

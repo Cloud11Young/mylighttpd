@@ -53,7 +53,7 @@ void chunkqueue_prepend_buffer(chunkqueue* cq, buffer* mem);
 void chunkqueue_append_chunk(chunkqueue* cq, chunk* c);
 
 struct server;
-void chunkqueue_append_mem_to_tempfile(struct server* srv, chunkqueue* cq, const char* mem, size_t len);
+int chunkqueue_append_mem_to_tempfile(struct server* srv, chunkqueue* cq, const char* mem, size_t len);
 void chunkqueue_get_memory(chunkqueue* cq, char** mem, size_t* len, size_t minsize, size_t allocsize);
 void chunkqueue_use_memory(chunkqueue* cq, size_t len);
 void chunkqueue_mark_written(chunkqueue* cq, off_t len);
