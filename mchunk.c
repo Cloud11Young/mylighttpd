@@ -413,40 +413,210 @@ int chunkqueue_append_mem_to_tempfile(server* srv, chunkqueue* dest, const char*
 
 
 void chunkqueue_get_memory(chunkqueue* cq, char** mem, size_t* len, size_t minsize, size_t allocsize){
+	static const size_t RELLOC_MAX_SIZE = 256;
 	force_assert(cq != NULL);
+
 	char* dummy_mem;
 	size_t dummy_len;
+	buffer* b;
+	chunk* c;
 
-	if (mem == NULL)	mem = &dummy_len;
+	if (mem == NULL)	mem = &dummy_mem;
 	if (dummy_len == 0)	len = &dummy_len;
 
+	if (0 == minsize)	minsize = 1024;
+	if (0 == allocsize)	allocsize = 4096;
+	if (allocsize < minsize)	allocsize = minsize;
+
+	if (cq->last != NULL && cq->last->type == MEM_CHUNK){
+		size_t have;
+		b = cq->last->mem;
+		have = buffer_string_space(b);
+
+		if (buffer_string_is_empty(b)){
+			buffer_string_prepare_copy(b, allocsize);
+			have = buffer_string_space(b);
+		}else if (have < minsize && b->size <= RELLOC_MAX_SIZE){
+			size_t cur_len = buffer_string_length(b);
+			size_t new_size = cur_len + minsize, append;
+			if (new_size < allocsize)	new_size = allocsize;
+
+			append = new_size - cur_len;
+			if (append >= minsize){
+				buffer_string_prepare_append(b, append);
+				have = buffer_string_space(b);
+			}
+		}
+
+		if (have >= minsize){
+			*mem = b->ptr + buffer_string_length(b);
+			*len = have;
+			return;
+		}
+	}
+
+	c = chunkqueue_get_unused_chunk(cq);
+	c->type = MEM_CHUNK;
+	chunkqueue_append_chunk(cq, c);
+	
+	b = c->mem;
+	buffer_string_prepare_copy(b, allocsize);
+
+	*mem = b->ptr + buffer_string_length(b);
+	*len = buffer_string_space(b);
 
 }
 
 
 void chunkqueue_use_memory(chunkqueue* cq, size_t len){
+	buffer* b;
+	force_assert(cq != NULL);
+	force_assert(cq->last != NULL && cq->last->type == MEM_CHUNK);
+	b = cq->last->mem;
 
+	if (len > 0){
+		buffer_commit(b, len);
+		cq->bytes_in += len;
+	}else if (buffer_string_is_empty(b)){
+		buffer_reset(b);
+	}
 
 }
 
 
 void chunkqueue_mark_written(chunkqueue* cq, off_t len){
+	force_assert(cq != NULL);
+	chunk* c;
+	off_t c_len;
+	off_t written = len;
 
+	for (c = cq->first; c != NULL; c = cq->first){
+		c_len = chunk_remaining_length(c);
+
+		if (written == 0 && c_len != 0)	break;
+
+		if (written >= c_len){
+			c->offset += c_len;
+			written -= c_len;
+
+			cq->first = c->next;
+			if (c == cq->last)	cq->last = NULL;
+
+			chunkqueue_push_unused_chunk(cq, c);
+		}else{
+			c->offset += written;
+			written = 0;
+			break;
+		}
+	}
+	force_assert(written == 0);
+	cq->bytes_out += len;
 }
 
 
 void chunkqueue_remove_finished_chunks(chunkqueue* cq){
-
+	chunk* c;
+	force_assert(cq != NULL);
+	for (c = cq->first; c; c = cq->first){
+		if (0 != chunk_remaining_length(c))	break;
+		cq->first = c->next;
+		if (c == cq->last)	cq->last = NULL;
+		chunkqueue_push_unused_chunk(cq, c);
+	}
 }
 
 
 void chunkqueue_steal(chunkqueue* dst, chunkqueue* src, off_t len){
+	while (len > 0){
+		chunk* c;
+		off_t c_len, use;
 
+		c = src->first;
+		if (c == NULL)	break;
+
+		c_len = chunk_remaining_length(c);
+
+		if (c_len == 0){
+			src->first = c->next;
+			if (c == src->last)	src->last = NULL;
+			chunkqueue_push_unused_chunk(src, c);
+			continue;
+		}
+
+		use = len >= c_len ? c_len : len;
+		len -= use;
+
+		if (use == c_len){
+			src->first = c->next;
+			if (c == src->last)	src->last = NULL;
+			chunkqueue_append_chunk(dst, c);
+		}else{
+			switch (c->type){
+			case MEM_CHUNK:
+				chunkqueue_append_mem(dst, c->mem->ptr + c->offset, use);
+				break;
+			case FILE_CHUNK:
+				chunkqueue_append_file(dst, c->file.name, c->file.start + c->offset, use);
+				break;
+			}
+
+			c->offset += use;
+			force_assert(len == 0);
+		}
+		src->bytes_out += use;
+	}
 }
 
 
 int chunkqueue_steal_with_tempfiles(server* srv, chunkqueue* dst, chunkqueue* src, off_t len){
+	while (len > 0){
+		chunk* c;
+		off_t c_len, use;
+		
+		c = src->first;
+		c_len = chunk_remaining_length(c);
 
+		if (c_len == 0){
+			src->first = c->next;
+			if (c == src->last)	src->last = NULL;
+
+			chunkqueue_push_unused_chunk(src, c);
+			continue;
+		}
+
+		use = len >= c_len ? c_len : len;
+		len -= use;
+		switch (c->type){
+		case FILE_CHUNK:
+			if (c_len == use){
+				src->first = c->next;
+				if (c == src->last)	src->last = NULL;
+
+				chunkqueue_append_chunk(dst, c);
+			}else{
+				chunkqueue_append_file(dst, c->file.name, c->file.start + c->offset, use);
+				c->offset += use;
+				force_assert(0 == len);
+			}
+			break;
+		case MEM_CHUNK:
+			if (0 != chunkqueue_append_mem_to_tempfile(srv, dst, c->mem->ptr + c->offset, use)){
+				return -1;
+			}
+
+			if (c_len == use){
+				src->first = c->next;
+				if (c == src->last)	src->last = NULL;
+				chunkqueue_push_unused_chunk(src, c);
+			}else{
+				c->offset += use;
+				force_assert(0 == len);
+			}
+			break;
+		}
+		src->bytes_out += use;
+	}
+	return 0;
 }
 
 

@@ -170,6 +170,9 @@ typedef struct connection{
 
 	request request;
 	request_uri uri;
+
+	chunkqueue* read_queue;
+	unsigned short is_readable;
 }connection;
 
 

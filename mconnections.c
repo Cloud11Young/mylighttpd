@@ -86,6 +86,36 @@ static int connection_close(server* srv, connection* con){
 }
 
 
+static int connection_handle_read_state(server* srv, connection* con){
+	chunkqueue* cq = con->read_queue;
+	chunk* c;
+	int is_closed = 0;
+	int is_request_start = chunkqueue_is_empty(cq);
+
+	if (con->is_readable){
+		con->read_idle_ts = srv->cur_ts;
+
+		switch (connection_handle_read(srv, con)){
+		case -1:
+			return -1;
+		case -2:
+			is_closed = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	chunkqueue_remove_finished_chunks(cq);
+
+	if (con->request_count > 1 && is_request_start){
+		con->request_start = srv->cur_ts;
+		if (con->conf.high_precision_timestamps)
+			log_clock_gettime_realtime(&con->request_start_hp);
+	}
+}
+
+
 connection* connection_init(server* srv){
 	connection* con = calloc(1, sizeof(*con));
 	force_assert(con != NULL);
