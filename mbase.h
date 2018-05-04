@@ -160,7 +160,7 @@ typedef struct connection{
 	buffer* dst_addr_buf;
 
 	time_t connection_start;
-	time_t request_start;
+	time_t request_start; 
 	time_t request_start_hp;
 	time_t read_idle_ts;
 
