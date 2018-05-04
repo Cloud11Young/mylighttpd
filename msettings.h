@@ -13,4 +13,8 @@ typedef enum{
 	HANDLER_ERROR,
 	HANDLER_WAIT_FOR_FD
 }handler_t;
+
+#define MAX_READ_LIMIT (256 * 1024)
+#define MAX_WRITE_LIMIT (256 * 1024)
+
 #endif

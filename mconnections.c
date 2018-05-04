@@ -1,6 +1,8 @@
 #include "mconnections.h"
 #include <errno.h>
 #include "minet_ntop_cache.h"
+#include "mrequest.h"
+#include "mresponse.h"
 
 
 static handler_t connection_handle_fdevent(server* srv, void* context, int revents){
@@ -89,6 +91,8 @@ static int connection_close(server* srv, connection* con){
 static int connection_handle_read_state(server* srv, connection* con){
 	chunkqueue* cq = con->read_queue;
 	chunk* c;
+	chunk* last_chunk;
+	size_t last_offset;
 	int is_closed = 0;
 	int is_request_start = chunkqueue_is_empty(cq);
 
@@ -113,6 +117,79 @@ static int connection_handle_read_state(server* srv, connection* con){
 		if (con->conf.high_precision_timestamps)
 			log_clock_gettime_realtime(&con->request_start_hp);
 	}
+
+	last_chunk = NULL;
+	last_offset = 0;
+
+	for (c = cq->first; c; c = c->next){
+		size_t i;
+		size_t len = buffer_string_length(c->mem) - c->offset;
+		const char* b = c->mem->ptr + c->offset;
+
+		for (i = 0; i < len; i++){
+			char ch = b[i];
+
+			if (ch == '\r'){
+				chunk* cc = c;
+				size_t j = i + 1;
+				const char head_end[] = "\r\n\r\n";
+				int head_end_pos = 1;
+
+				for (; cc; cc = cc->next, j = 0){
+					size_t bblen = buffer_string_length(cc->mem) + cc->offset;
+					const char* bb = cc->mem->ptr + cc->offset;
+
+					for (; j < bblen; j++){
+						ch = bb[j];
+						if (ch == head_end[head_end_pos]){
+							head_end_pos++;
+							if (4 == head_end_pos){
+								last_chunk = cc;
+								last_offset = j + 1;
+								goto found_header_end;
+							}else{
+								goto reset_rearch;
+							}
+						}
+					}
+				}
+			}
+reset_rearch: ;
+		}	
+	}
+found_header_end:
+	if (last_chunk){
+		buffer_reset(con->request.request);
+
+		for (c = cq->first; c; c = c->next){
+			size_t len = buffer_string_length(c->mem) - c->offset;
+
+			if (c == last_chunk){
+				len = last_offset;
+			}
+
+			buffer_append_string_len(con->request.request, c->mem->ptr + c->offset, len);
+			c->offset += len;
+			cq->bytes_out += len;
+
+			if (c == last_chunk)	break;
+		}
+
+		connection_set_state(srv, con, CON_STATE_REQUEST_END);
+	}else if (is_closed){
+		connection_set_state(srv, con, CON_STATE_ERROR);
+	}
+
+	if ((last_chunk ? buffer_string_length(con->request.request) : chunkqueue_length(cq))
+					> srv->srvconf.max_request_field_size){
+		log_error_write(srv, __FILE__, __LINE__, "s", "oversized request-header -> Sending status 431");
+		con->http_status = 431;
+		con->keep_alive = 0;
+		connection_set_state(srv, con, CON_STATE_HANDLE_REQUEST);
+	}
+
+	chunkqueue_remove_finished_chunks(cq);
+	return 0;
 }
 
 
@@ -232,9 +309,33 @@ int connection_state_machine(server* srv, connection* con){
 			connection_set_state(srv, con, CON_STATE_READ);
 			break;
 		case CON_STATE_REQUEST_END:
+			buffer_reset(con->uri.authority);
+			buffer_reset(con->uri.path);
+			buffer_reset(con->uri.query);
+			buffer_reset(con->request.orig_uri);
+
+			if (http_request_parse(srv, con)){
+				connection_set_state(srv, con, CON_STATE_READ_POST);
+				break;
+			}
+			connection_set_state(srv, con, CON_STATE_HANDLE_REQUEST);
 			break;
 		case CON_STATE_READ_POST:
 		case CON_STATE_HANDLE_REQUEST:
+			switch (r = http_response_prepare(srv, con)){
+			case HANDLER_WAIT_FOR_EVENT:
+				break;
+			case HANDLER_FINISHED:
+				break;
+			case HANDLER_WAIT_FOR_FD:
+				break;
+			case HANDLER_COMEBACK:
+				break;
+			case HANDLER_ERROR:
+				break;
+			default:
+				break;
+			}
 			break;
 		case CON_STATE_RESPONSE_START:
 			break;
@@ -262,3 +363,4 @@ int connection_state_machine(server* srv, connection* con){
 
 	
 }
+

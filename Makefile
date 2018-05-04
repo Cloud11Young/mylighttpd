@@ -1,4 +1,4 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o mrequest.o mresponse.o
 
 time=$(shell date)
 server:$(targets)
@@ -30,7 +30,7 @@ mnetwork_backends.o:mnetwork_backends.c mnetwork_backends.h
 	gcc -c mnetwork_backends.c
 mfdevent_select.o:mfdevent_select.c mfdevent.h
 	gcc -c mfdevent_select.c
-mfdevent_poll.o:mfdevent_poll.o mfdevent.h
+mfdevent_poll.o:mfdevent_poll.c mfdevent.h
 	gcc -c mfdevent_poll.c
 mfdevent_linux_sysepoll.o:mfdevent_linux_sysepoll.c mfdevent.h
 	gcc -c mfdevent_linux_sysepoll.c
@@ -50,5 +50,9 @@ minet_ntop_cache.o:minet_ntop_cache.c minet_ntop_cache.h
 	gcc -c minet_ntop_cache.c -g
 mconnection_glue.o:mconnection_glue.c mconnections.h
 	gcc -c mconnection_glue.c -g
+mrequest.o:mrequest.c mrequest.h
+	gcc -c mrequest.c -g
+mresponse.o:mresponse.c mresponse.h
+	gcc -c mresponse.c -g
 clean:
 	rm -f $(targets)

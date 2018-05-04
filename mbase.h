@@ -78,6 +78,8 @@ typedef struct server_config{
 
 	unsigned short high_precision_timestamps;
 
+	size_t max_request_field_size;
+
 	enum{
 		STAT_CACHE_ENGINE_UNSET,
 		STAT_CACHE_ENGINE_NONE,
@@ -134,6 +136,7 @@ typedef enum{
 
 typedef struct request{
 	buffer* orig_uri;
+	buffer* request;
 }request;
 
 typedef struct {
@@ -167,12 +170,22 @@ typedef struct connection{
 	int request_count;
 	int loops_per_request;
 	
+	int http_status;
 
 	request request;
 	request_uri uri;
 
 	chunkqueue* read_queue;
+	chunkqueue* write_queue;
+
 	unsigned short is_readable;
+	unsigned short is_writeable;
+
+	int keep_alive;
+	int keep_alive_idle;
+
+	off_t bytes_read;
+	off_t bytes_write;
 }connection;
 
 
