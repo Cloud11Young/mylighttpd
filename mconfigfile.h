@@ -2,7 +2,15 @@
 #define MCONFIGFILE_H_
 
 #include "mbase.h"
+#include "marray.h"
 
-int config_set_defaults(server* srv);
+typedef struct {
+	server* srv;
+	int ok;
+	array* all_configs;
+	vector_config_weak configs_stack;
+	data_config* current;
+	buffer* basedir;
+}config_t;
 
 #endif

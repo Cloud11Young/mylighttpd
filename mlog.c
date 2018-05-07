@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdio.h>
 
 static int log_buffer_prepare(buffer* s, server* srv, const char* filename, unsigned int line){
 	switch (srv->errorlog_mode){
@@ -21,7 +22,9 @@ static int log_buffer_prepare(buffer* s, server* srv, const char* filename, unsi
 			buffer_string_prepare_copy(srv->ts_debug_str, 255);
 			buffer_append_strftime(srv->ts_debug_str, "%Y-%m-%d %H:%M:%S", localtime(&srv->cur_ts));
 		}
+		//fprintf(stdout, srv->ts_debug_str->ptr);
 		buffer_copy_buffer(s, srv->ts_debug_str);
+		
 		buffer_append_string_len(s, CONST_STR_LEN(":("));
 		break;
 	case ERRORLOG_SYSLOG:
@@ -253,6 +256,7 @@ int log_error_write(server* srv, const char* filename, unsigned int line, const 
 	log_buffer_append_printf(srv->errorlog_buf, fmt, ap);
 	va_end(ap);
 
+//	fprintf(stdout, srv->errorlog_buf->ptr);
 	log_write(srv, srv->errorlog_buf);
 	return 0;
 }

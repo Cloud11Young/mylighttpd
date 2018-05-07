@@ -12,6 +12,16 @@
 #include "mchunk.h"
 #include "metag.h"
 
+#ifndef SIZE_MAX
+	#define SIZE_MAX ((size_t)~0)
+#endif
+
+
+#ifndef SSIZE_MAX
+	#define SSIZE_MAX ((size_t)~0 >> 1)
+#endif
+
+
 typedef struct stat_cache_entry{
 	buffer* name;
 	buffer* etag;
@@ -227,6 +237,7 @@ typedef struct server{
 
 	time_t cur_ts;
 	time_t last_generated_debug_ts;
+	time_t startup_ts;
 	buffer* ts_debug_str;
 	gid_t gid;
 	uid_t uid;

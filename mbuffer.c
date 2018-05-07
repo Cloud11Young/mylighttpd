@@ -189,11 +189,15 @@ void buffer_append_string_len(buffer* b, const char* s, size_t s_len){
 void buffer_commit(buffer* b, size_t size){
 	force_assert(b != NULL);
 	force_assert(b->size > 0);
+
+	if(b->used == 0)	b->used = 1;
+
 	if (size > 0){
 		force_assert(b->used + size > b->used);
 		force_assert(b->used + size >= b->size);
+		b->used += size;
 	}
-	b->used += size;
+
 	b->ptr[b->used - 1] = '\0';
 }
 
@@ -227,6 +231,7 @@ void buffer_append_string(buffer* b, const char* s){
 		nlen = strlen(s);
 	return buffer_append_string_len(b, s, nlen);
 }
+
 
 void buffer_append_strftime(buffer* b, const char* format, const struct tm* tm){
 	force_assert(NULL != b);
@@ -293,7 +298,7 @@ void buffer_append_string_c_escaped(buffer* b, const char* s, size_t s_len){
 				break;
 			}
 		}else{
-			buf[d_len] = *ds;
+			buf[d_len++] = *ds;
 		}
 	}
 }
@@ -335,4 +340,24 @@ void buffer_move(buffer* b, buffer* src){
 	if (src == NULL)	return;
 
 	tmp = *src; *src = *b; *b = tmp;
+}
+
+
+int buffer_caseless_compare(const char* a, size_t a_len, const char* b, size_t b_len){
+	const size_t len = a_len < b_len ? a_len : b_len;
+	size_t i;
+
+	for (i = 0; i < len; i++){
+		unsigned char ca = a[i], cb = b[i];
+		if (ca == cb)	continue;
+
+		if (ca >= 'A' && ca <= 'Z')	ca |= 32;
+		if (cb >= 'A'&& cb <= 'Z')	cb |= 32;
+
+		if (ca == cb)	continue;
+		return (int)ca - (int)cb;
+	}
+
+	if (a_len == b_len)	return 0;
+	return a_len < b_len ? -1 : 1;
 }

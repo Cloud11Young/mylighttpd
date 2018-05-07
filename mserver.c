@@ -29,7 +29,41 @@ static int l_issetugid(){
 #endif
 
 static server* server_init(){
-	return NULL;
+	server* srv = malloc(sizeof(*srv));
+	force_assert(srv != NULL);
+#define CLEAN(x)\
+	srv->x = buffer_init();
+
+	CLEAN(errorlog_buf);
+	CLEAN(ts_debug_str);
+	CLEAN(tmp_buf);
+	
+	CLEAN(srvconf.bindhost);
+	CLEAN(srvconf.modules_dir);
+	CLEAN(srvconf.pid_file);
+	CLEAN(srvconf.changeroot);
+	CLEAN(srvconf.network_backend);
+	CLEAN(srvconf.errorlog_file);
+	CLEAN(srvconf.breakagelog_file);
+
+#undef CLEAN
+#define CLEAN(x)\
+	srv->x = array_init();
+
+	CLEAN(config_context);
+	CLEAN(config_touched);
+#undef CLEAN
+
+	srv->cur_ts = time(NULL);
+	srv->startup_ts = srv->cur_ts;
+
+	srv->conns = calloc(1, sizeof(*srv->conns));
+	force_assert(srv->conns != NULL);
+
+	srv->joblist = calloc(1, sizeof(*srv->joblist));
+	force_assert(srv->joblist != NULL);
+
+	return srv;
 }
 
 static void server_free(server* srv){
@@ -214,16 +248,18 @@ int main(int argc, char* argv[]){
 		}
 	}
 
+	fprintf(stdout, "111111\n");
 	if (!srv->config_storage){
 		log_error_write(srv, __FILE__, __LINE__, "s",
 			"No configuration available. Try use -f option");
+		//fprintf(stdout, "22222222\n");
 		server_free(srv);
 		return -1;
 	}
-
+	
 	openDevNull(STDIN_FILENO);
 	openDevNull(STDOUT_FILENO);
-
+	
 	if (config_set_defaults(srv) != 0){
 		log_error_write(srv, __FILE__, __LINE__, "s",
 			"setting defaults values failed");
@@ -246,7 +282,7 @@ int main(int argc, char* argv[]){
 		server_free(srv);
 		return -1;
 	}
-
+	
 	if (plugins_load(srv)){
 		log_error_write(srv, __FILE__, __LINE__, "s",
 			"loading plugins finally failed");
@@ -255,6 +291,7 @@ int main(int argc, char* argv[]){
 		return -1;
 	}
 
+	
 	/*open pid file before chroot*/
 	if (!buffer_string_is_empty(srv->srvconf.pid_file)){
 		if (-1 != (pid_fd = fdevent_open_cloexec(srv->srvconf.pid_file->ptr, O_WRONLY | O_CREAT | O_EXCL | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH))){

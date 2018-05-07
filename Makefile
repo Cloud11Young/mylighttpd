@@ -1,47 +1,47 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o mrequest.o mresponse.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o mrequest.o mresponse.o mdata_config.o
 
 time=$(shell date)
 server:$(targets)
 	@echo "$(time)"
-	gcc -o server $(targets) -ldl
-server.o:mserver.c mserver.h
-	gcc -c server.c
+	gcc -o server -g $(targets) -ldl
+mserver.o:mserver.c mserver.h
+	gcc -c mserver.c -g
 mconfigfile.o:mconfigfile.c mconfigfile.h
-	gcc -c mconfigfile.c
+	gcc -c mconfigfile.c -g
 mlog.o:mlog.c mlog.h
-	gcc -c mlog.c
+	gcc -c mlog.c -g
 mbuffer.o:mbuffer.c mbuffer.h
-	gcc -c mbuffer.c
+	gcc -c mbuffer.c -g
 mplugin.o:mplugin.c mplugin.h
-	gcc -c mplugin.c 
+	gcc -c mplugin.c -g
 mfdevent.o:mfdevent.c mfdevent.h
-	gcc -c mfdevent.c
+	gcc -c mfdevent.c -g
 mnetwork.o:mnetwork.c mnetwork.h
-	gcc -c mnetwork.c
+	gcc -c mnetwork.c -g
 marray.o:marray.c marray.h
-	gcc -c marray.c
+	gcc -c marray.c -g
 msplaytree.o:msplaytree.c msplaytree.h
-	gcc -c msplaytree.c
+	gcc -c msplaytree.c -g
 mstat_cache.o:mstat_cache.c mstat_cache.h
-	gcc -c mstat_cache.c
+	gcc -c mstat_cache.c -g
 mchunk.o:mchunk.c mchunk.h
-	gcc -c mchunk.c
+	gcc -c mchunk.c -g
 mnetwork_backends.o:mnetwork_backends.c mnetwork_backends.h
-	gcc -c mnetwork_backends.c
+	gcc -c mnetwork_backends.c -g
 mfdevent_select.o:mfdevent_select.c mfdevent.h
-	gcc -c mfdevent_select.c
+	gcc -c mfdevent_select.c -g
 mfdevent_poll.o:mfdevent_poll.c mfdevent.h
-	gcc -c mfdevent_poll.c
+	gcc -c mfdevent_poll.c -g
 mfdevent_linux_sysepoll.o:mfdevent_linux_sysepoll.c mfdevent.h
-	gcc -c mfdevent_linux_sysepoll.c
+	gcc -c mfdevent_linux_sysepoll.c -g
 mfdevent_solaris_devpoll.o:mfdevent_solaris_devpoll.c mfdevent.h
-	gcc -c mfdevent_solaris_devpoll.c
+	gcc -c mfdevent_solaris_devpoll.c -g
 mfdevent_solaris_port.o:mfdevent_solaris_port.c mfdevent.h
-	gcc -c mfdevent_solaris_port.c
+	gcc -c mfdevent_solaris_port.c -g
 mfdevent_libev.o:mfdevent_libev.c mfdevent.h
-	gcc -c mfdevent_libev.c
+	gcc -c mfdevent_libev.c -g
 mfdevent_freebsd_kqueue.o:mfdevent_freebsd_kqueue.c mfdevent.h
-	gcc -c mfdevent_freebsd_kqueue.c
+	gcc -c mfdevent_freebsd_kqueue.c -g
 metag.o:metag.c metag.h
 	gcc -c metag.c -g
 mconnections.o:mconnections.c mconnections.h
@@ -54,5 +54,7 @@ mrequest.o:mrequest.c mrequest.h
 	gcc -c mrequest.c -g
 mresponse.o:mresponse.c mresponse.h
 	gcc -c mresponse.c -g
+mdata_config.o:mdata_config.c marray.h
+	gcc -c mdata_config.c -g
 clean:
 	rm -f $(targets)
