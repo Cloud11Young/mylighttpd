@@ -1,4 +1,4 @@
-targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o mrequest.o mresponse.o mdata_config.o
+targets=mserver.o mconfigfile.o mlog.o mbuffer.o mplugin.o mfdevent.o mnetwork.o marray.o msplaytree.o mstat_cache.o mchunk.o mnetwork_backends.o mfdevent_select.o mfdevent_poll.o mfdevent_linux_sysepoll.o mfdevent_solaris_devpoll.o mfdevent_libev.o mfdevent_freebsd_kqueue.o mfdevent_solaris_port.o metag.o mconnections.o minet_ntop_cache.o mconnection_glue.o mrequest.o mresponse.o mdata_config.o mdata_integer.o mdata_string.o mstream.o mconfigparser.o
 
 time=$(shell date)
 server:$(targets)
@@ -56,5 +56,13 @@ mresponse.o:mresponse.c mresponse.h
 	gcc -c mresponse.c -g
 mdata_config.o:mdata_config.c marray.h
 	gcc -c mdata_config.c -g
+mdata_integer.o:mdata_integer.c marray.h
+	gcc -c mdata_integer.c -g
+mdata_string.o:mdata_string.c marray.h
+	gcc -c mdata_string.c -g
+mstream.o:mstream.c mstream.h
+	gcc -c mstream.c -g
+mconfigparser.o:mconfigparser.c mconfigfile.h
+	gcc -c mconfigparser.c -g
 clean:
 	rm -f $(targets)

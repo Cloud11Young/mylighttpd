@@ -13,4 +13,7 @@ typedef struct {
 	buffer* basedir;
 }config_t;
 
+void* configparserAlloc(void* (*mallocproc)(size_t));
+void configparser(void* yyp, int yymajor, buffer* yyminor, config_t* ctx);
+
 #endif
