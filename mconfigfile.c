@@ -448,4 +448,12 @@ int config_set_defaults(server* srv){
 }
 
 
+int config_parse_file(server* srv, config_t* context, const char* fn){
 
+
+}
+
+
+int config_parse_cmd(server* srv, config_t* context, const char* cmd){
+
+}

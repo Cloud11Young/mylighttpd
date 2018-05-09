@@ -39,6 +39,9 @@ void buffer_append_string(buffer* b, const char* s);
 void buffer_append_strftime(buffer* b, const char* format, const struct tm* tm);
 void buffer_append_string_c_escaped(buffer* b, const char* s, size_t s_len);
 void buffer_append_uint_hex(buffer* b, uintmax_t len);
+void buffer_append_string_buffer(buffer* b, const buffer* src);
+
+void buffer_string_set_length(buffer* b, size_t len);
 
 int buffer_string_space(buffer* b);
 

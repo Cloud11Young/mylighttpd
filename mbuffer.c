@@ -361,3 +361,23 @@ int buffer_caseless_compare(const char* a, size_t a_len, const char* b, size_t b
 	if (a_len == b_len)	return 0;
 	return a_len < b_len ? -1 : 1;
 }
+
+
+void buffer_append_string_buffer(buffer* b, const buffer* src){
+	if (NULL == src){
+		buffer_append_string_len(b, NULL, 0);
+	}else{
+		buffer_append_string_len(b, src->ptr, buffer_string_length(src));
+	}
+}
+
+
+void buffer_string_set_length(buffer* b, size_t len){
+	force_assert(b != NULL);
+	force_assert(len + 1 > len);
+
+	buffer_realloc(b, len + 1);
+
+	b->used = len + 1;
+	b->ptr[len] = '\0';
+}
