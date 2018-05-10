@@ -147,7 +147,14 @@ data_unset* array_get_unused_element(array* a, data_type_t t){
 }
 
 data_unset* array_get_element(array* a, const char* key){
+	size_t ndx;
+	force_assert(key != NULL);
 
+	if (ARRAY_NOT_FOUND != (ndx = array_get_index(a, key, strlen(key), NULL))){
+		return a->data[ndx];
+	}
+
+	return NULL;
 }
 
 data_unset* array_extract_element(array* a, const char* key){	/*removes found entry from array*/

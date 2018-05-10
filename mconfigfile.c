@@ -4,7 +4,7 @@
 #include <errno.h>
 #include "mbase.h"
 #include "mstream.h"
-#include "mconfigparser.h"
+#include "configparser.h"
 
 typedef struct{
 	int foo;
@@ -64,7 +64,7 @@ static int config_skip_comment(tokenizer_t* t){
 
 
 static int config_skip_newline(tokenizer_t* t){
-	int i;
+	int i = 1;
 	force_assert(t->input[t->offset] == '\r' || t->input[t->offset] == '\n');
 	if (t->input[t->offset] == '\r' && t->input[t->offset + 1] == '\n'){
 		i++;

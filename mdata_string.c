@@ -31,18 +31,46 @@ static void data_string_reset(struct data_unset* p){
 }
 
 
-static int data_string_insert_dup(struct data_unset* dst, struct data_unset* s){
-	UNUSED(det);
+static int data_string_insert_dup(struct data_unset* d, struct data_unset* s){
+	data_string* src = (data_string*)s;
+	data_string* dst = (data_string*)d;
 
-	src->free(src);
+	if (!buffer_string_is_empty(dst->value)){
+		buffer_append_string_len(dst->value, CONST_STR_LEN("\r\n"));
+		buffer_append_string_buffer(dst->value, src->key);
+		buffer_append_string_len(dst->value, CONST_STR_LEN(": "));
+		buffer_append_string_buffer(dst->value, src->value);
+	}else{
+		buffer_copy_buffer(dst->value, src->value);
+	}
+
+	s->free(s);
 	return 0;
 }
 
 
 static void data_string_print(struct data_unset* p, int depth){
-	data_string* di = (data_string*)p;
+	data_string* ds = (data_string*)p;
+	size_t i, len;
+
 	UNUSED(depth);
-	fprintf(stdout, "%s", di->value->ptr);
+
+	if (buffer_string_is_empty(ds->value)){
+		fprintf(stdout, "\"\"");
+		return;
+	}
+	
+	putc('"', stdout);
+	len = buffer_string_length(ds->value);
+	for (i = 0; i < len; i++){
+		char c = ds->value->ptr[i];
+		if (c == '"'){
+			fprintf(stdout, "\\\"");
+		}else{
+			putc(c,stdout);
+		}
+	}
+	putc('"', stdout);
 }
 
 
