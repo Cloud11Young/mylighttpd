@@ -5,6 +5,7 @@
 #include "mbase.h"
 #include "mstream.h"
 #include "configparser.h"
+#include "mrequest.h"
 
 typedef struct{
 	int foo;
@@ -391,7 +392,166 @@ static int config_parse_file_stream(server* srv, config_t* context, const buffer
 }
 
 static int config_insert(server* srv){
+	size_t i;
+	int ret = 0;
+	buffer* stat_cache_string;
 
+	config_values_t cv[] = {
+		{ "server.bind",		NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
+		{ "server.errorlog",	NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
+		{ "server.chroot",		NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
+	};
+
+	cv[0].destination = srv->srvconf.bindhost;
+	cv[1].destination = srv->srvconf.errorlog_file;
+	cv[2].destination = srv->srvconf.changeroot;
+
+	srv->config_storage = calloc(1, srv->config_context->used * sizeof(*srv->config_storage));
+	force_assert(srv->config_storage != NULL);
+	force_assert(srv->config_context->used);
+
+	for (i = 0; i < srv->config_context->used; i++){
+		data_config const* config = (data_config const*)srv->config_context->data[i];
+		
+		specific_config* s = calloc(1, sizeof(*s));
+		force_assert(s != NULL);
+
+		s->document_root = buffer_init();
+		s->mimetypes = array_init();
+
+		srv->config_storage[i] = s;
+
+		if (0 != (ret = config_insert_values_global(srv, config->value, cv, i == 0 ? T_CONFIG_SCOPE_SERVER : T_CONFIG_SCOPE_CONNECTION))){
+			break;
+		}
+	}
+	{
+		specific_config* s = srv->config_storage[0];
+		s->http_parseopts =
+			(srv->srvconf.http_header_strict ? (HTTP_PARSEOPT_HEADER_STRICT) : 0)
+			| (srv->srvconf.http_host_strict ? (HTTP_PARSEOPT_HOST_STRICT | HTTP_PARSEOPT_HOST_NORMALIZE) : 0)
+			| (srv->srvconf.http_host_normalize ? (HTTP_PARSEOPT_HOST_NORMALIZE) : 0);
+	}
+
+	if (buffer_string_is_empty(stat_cache_string)){
+		srv->srvconf.stat_cache_engine = STAT_CACHE_ENGINE_SIMPLE;
+	}else if (buffer_is_equal_string(stat_cache_string,CONST_STR_LEN("simple"))){
+		srv->srvconf.stat_cache_engine = STAT_CACHE_ENGINE_SIMPLE;
+#ifdef HAVE_FAM_H
+	}else if (buffer_is_equal_string(stat_cache_string, CONST_STR_LEN("fam"))){
+		srv->srvconf.stat_cache_engine = STAT_CACHE_ENGINE_FAM;
+#endif
+	}else if (buffer_is_equal_string(stat_cache_string, CONST_STR_LEN("disable"))){
+		srv->srvconf.stat_cache_engine = STAT_CACHE_ENGINE_NONE;
+	}else{
+		log_error_write(srv, __FILE__, __LINE__, "sb",
+			"server.stat_cache_engine can be one of \"disable\", \"simple\","
+#ifdef HAVE_FAM_H
+			" \"fam\","
+#endif
+			" but not: ", stat_cache_string);
+		return HANDLER_ERROR;
+	}
+	buffer_free(stat_cache_string);
+
+	{
+		int prepend_mod_indexfile = 1;
+		int append_mod_dirlisting = 1;
+		int append_mod_staticfile = 1;
+		int append_mod_authn_file = 1;
+		int append_mod_authn_ldap = 1;
+		int append_mod_authn_mysql = 1;
+		int contains_mod_auth = 0;
+
+		for (i = 0; i < srv->srvconf.modules->used; i++){
+			data_string* ds = (data_string*)srv->srvconf.modules->data[i];
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_indexfile"))){
+				prepend_mod_indexfile = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_staticfile"))){
+				append_mod_staticfile = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_dirlisting"))){
+				append_mod_dirlisting = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_authn_file"))){
+				append_mod_authn_file = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_authn_ldap"))){
+				append_mod_authn_ldap = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_authn_mysql"))){
+				append_mod_authn_mysql = 0;
+			}
+
+			if (buffer_is_equal_string(ds->value, CONST_STR_LEN("mod_auth"))){
+				contains_mod_auth = 1;
+			}
+
+			if (0 == prepend_mod_indexfile &&
+				0 == append_mod_dirlisting &&
+				0 == append_mod_staticfile &&
+				0 == append_mod_authn_file &&
+				0 == append_mod_authn_ldap &&
+				0 == append_mod_authn_mysql &&
+				1 == contains_mod_auth)
+				break;
+		}		
+
+		if (prepend_mod_indexfile){
+			array* a = array_init();
+
+			data_string* ds = data_string_init();
+			buffer_copy_string_len(ds->value, CONST_STR_LEN("mod_indexfile"));
+			array_insert_unique(a, (data_unset*)ds);
+
+			for (i = 0; i < srv->srvconf.modules->used; i++){
+				data_unset* du = srv->srvconf.modules->data[i];
+				array_insert_unique(a, du->copy(du));
+			}
+			array_free(srv->srvconf.modules);
+			srv->srvconf.modules = a;
+		}
+
+		if (append_mod_dirlisting){
+			data_string* ds = data_string_init();
+			buffer_copy_string_len(ds->value, CONST_STR_LEN("mod_dirlisting"));
+			array_insert_unique(srv->srvconf.modules, (data_unset*)ds);
+		}
+
+		if (append_mod_staticfile){
+			data_string* ds = data_string_init();
+			buffer_copy_string_len(ds->value, CONST_STR_LEN("mod_staticfile"));
+			array_insert_unique(srv->srvconf.modules, (data_unset*)ds);
+		}
+
+		if (contains_mod_auth){
+			if (append_mod_authn_file){
+				data_string* ds = data_string_init();
+				buffer_copy_string_len(ds->value, CONST_STR_LEN("mod_authn_file"));
+				array_insert_unique(srv->srvconf.modules, (data_unset*)ds);
+			}
+
+			if (append_mod_authn_ldap){
+			#if defined(HAVE_LDAP_H) && defined(HAVE_LBER_H) && defined(HAVE_LIBDAP) && defined (HAVE_LIBBER)
+				config_warn_authn_module(srv, "ldap");
+			#endif
+			}
+
+			if (append_mod_authn_mysql){
+			#if defined(HAVE_MYSQL_H)
+				config_warn_authn_module(srv, "mysql");
+			#endif
+			}
+		}
+	}
+	return ret;
 }
 
 

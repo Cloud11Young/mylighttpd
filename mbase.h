@@ -22,6 +22,35 @@
 #endif
 
 
+typedef enum{
+	T_CONFIG_UNSET,
+	T_CONFIG_STRING,
+	T_CONFIG_INT,
+	T_CONFIG_SHORT,
+	T_CONFIG_ARRAY,
+	T_CONFIG_BOOLEAN,
+	T_CONFIG_LOCAL,
+	T_CONFIG_DEPRECATED,
+	T_CONFIG_UNSUPPORTED
+}config_values_type_t;
+
+
+typedef enum{
+	T_CONFIG_SCOPE_UNSET,
+	T_CONFIG_SCOPE_SERVER,
+	T_CONFIG_SCOPE_CONNECTION
+}config_scope_type_t;
+
+
+typedef struct {
+	const char* key;
+	void* destination;
+
+	config_values_type_t type;
+	config_scope_type_t scope;
+}config_values_t;
+
+
 typedef struct stat_cache_entry{
 	buffer* name;
 	buffer* etag;
@@ -62,6 +91,8 @@ typedef struct specific_config{
 
 	unsigned short follow_symlink;
 
+	unsigned int http_parseopts;
+
 	array* mimetypes;
 }specific_config;
 
@@ -87,6 +118,9 @@ typedef struct server_config{
 	unsigned short preflight_check;
 
 	unsigned short high_precision_timestamps;
+	unsigned short http_header_strict;
+	unsigned short http_host_strict;
+	unsigned short http_host_normalize;
 
 	size_t max_request_field_size;
 
@@ -220,6 +254,8 @@ typedef struct server{
 
 	specific_config** config_storage;
 	server_config	  srvconf;
+	array*			config_context;
+	array*			config_touched;
 
 	enum{ ERRORLOG_PIPE, ERRORLOG_FD, ERRORLOG_FILE, ERRORLOG_SYSLOG } errorlog_mode;
 	int errorlog_fd;
@@ -240,10 +276,7 @@ typedef struct server{
 	time_t startup_ts;
 	buffer* ts_debug_str;
 	gid_t gid;
-	uid_t uid;
-
-	array* config_context;
-	array* config_touched;
+	uid_t uid;	
 
 	short int config_unsupported;
 	short int config_deprecated;
