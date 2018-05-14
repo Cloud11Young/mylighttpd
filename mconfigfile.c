@@ -397,14 +397,21 @@ static int config_insert(server* srv){
 	buffer* stat_cache_string;
 
 	config_values_t cv[] = {
-		{ "server.bind",		NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
-		{ "server.errorlog",	NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
-		{ "server.chroot",		NULL, T_CONFIG_STRING, T_CONFIG_SCOPE_SERVER },
+		{ "server.bind",				NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*0*/
+		{ "server.errorlog",			NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*1*/
+		{ "server.chroot",				NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*3*/
+		{ "server.modules",				NULL,	T_CONFIG_ARRAY,		T_CONFIG_SCOPE_SERVER },/*9*/
+		{ "server.stat_cache_engine",	NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*42*/
+		{NULL,							NULL,	T_CONFIG_UNSET,		T_CONFIG_SCOPE_UNSET}
 	};
 
 	cv[0].destination = srv->srvconf.bindhost;
 	cv[1].destination = srv->srvconf.errorlog_file;
-	cv[2].destination = srv->srvconf.changeroot;
+	cv[2].destination = srv->srvconf.changeroot;	
+	cv[3].destination = srv->srvconf.modules;
+
+	stat_cache_string = buffer_init();
+	cv[4].destination = stat_cache_string;
 
 	srv->config_storage = calloc(1, srv->config_context->used * sizeof(*srv->config_storage));
 	force_assert(srv->config_storage != NULL);

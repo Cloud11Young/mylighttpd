@@ -80,7 +80,7 @@ data_string* data_string_init(){
 
 	ds->key = buffer_init();
 	ds->value = buffer_init();
-
+	ds->type = TYPE_STRING;
 
 	ds->copy = data_string_copy;
 	ds->free = data_string_free;

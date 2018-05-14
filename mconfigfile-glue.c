@@ -38,7 +38,7 @@ int config_insert_values_internal(server* srv, array* a, const config_values_t* 
 		switch (cv[i].type){
 		case T_CONFIG_STRING:
 			if (du->type == TYPE_STRING){
-				data_string* ds = (data_string*)ds;
+				data_string* ds = (data_string*)du;
 				buffer_copy_buffer(cv[i].destination, ds->value);
 			}else{
 				log_error_write(srv, __FILE__, __LINE__, "ss", cv[i].key, " should have been a string like ... = \"...\" ");

@@ -48,6 +48,7 @@ data_integer* data_integer_init(){
 	data_integer* di = calloc(1, sizeof(*di));
 	force_assert(di != NULL);
 
+	di->type = TYPE_INTEGER;
 	di->key = buffer_init();
 
 	di->copy = data_integer_copy;

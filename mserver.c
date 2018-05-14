@@ -63,11 +63,15 @@ static server* server_init(){
 	srv->joblist = calloc(1, sizeof(*srv->joblist));
 	force_assert(srv->joblist != NULL);
 
+	srv->srvconf.modules = array_init();
+
+	srv->errorlog_fd = STDERR_FILENO;
+	srv->errorlog_mode = ERRORLOG_FD;
 	return srv;
 }
 
 static void server_free(server* srv){
-
+	array_free(srv->srvconf.modules);
 }
 
 static void remove_pid_file(server* srv, int* pid){
