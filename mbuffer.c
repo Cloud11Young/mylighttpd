@@ -1,4 +1,5 @@
 #include "mbuffer.h"
+#include "msettings.h"
 #include <stdlib.h>
 
 static char hex_chars[] = "0123456789abcdef";
@@ -43,8 +44,15 @@ void buffer_free(buffer* b){
 }
 
 void buffer_reset(buffer* b){
-	force_assert(b);
-	b->ptr[0] = '\0';
+	if (b == NULL)	return;
+
+	if (b->size > BUFFER_MAX_REUSE_SIZE){
+		free(b->ptr);
+		b->ptr = NULL;
+		b->size = 0;
+	}else if (b->size > 0){
+		b->ptr[0] = '\0';
+	}
 	b->used = 0;
 }
 
@@ -360,6 +368,25 @@ int buffer_caseless_compare(const char* a, size_t a_len, const char* b, size_t b
 
 	if (a_len == b_len)	return 0;
 	return a_len < b_len ? -1 : 1;
+}
+
+
+void buffer_to_lower(buffer* b){
+	size_t i;
+
+	for (i = 0; i < b->used; i++){
+		char ch = b->ptr[i];
+		if (ch >= 'A'&& ch <= 'Z')	ch |= 0x20;
+	}
+}
+
+
+void buffer_to_upper(buffer* b){
+	size_t i;
+	for (i = 0; i < b->used; i++){
+		char ch = b->ptr[i];
+		if (ch >= 'a' && ch <= 'z')	ch &= ~0x20;
+	}
 }
 
 

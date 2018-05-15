@@ -1,6 +1,8 @@
 #include "marray.h"
-#include <stdlib.h>
 #include "mbase.h"
+#include <stdio.h>
+#include <stdlib.h>
+
 
 #define ARRAY_NOT_FOUND ((size_t)-1)
 
@@ -135,7 +137,22 @@ void array_insert_unique(array* a, data_unset* entry){
 }
 
 data_unset* array_pop(array* a){
-
+	data_unset* du;
+	size_t i;
+	force_assert(a->used != 0);
+	
+	a->used--;
+	du = a->data[a->used];
+//	force_assert(a->sorted[a->used] == a->used);
+	for (i = 0; i <= a->used; i++){
+		if (a->sorted[i] == a->used)
+			break;
+	}
+	if (i < a->used){
+		memmove(a->sorted + i, a->sorted + i + 1, a->used - i);
+	}
+	a->data[a->used] = NULL;
+	return du;
 }
 
 void array_print(array* a, int depth){
@@ -143,7 +160,20 @@ void array_print(array* a, int depth){
 }
 
 data_unset* array_get_unused_element(array* a, data_type_t t){
+	data_unset* du;
+	size_t i;
 
+	for (i = a->used; i < a->size; i++){
+		if (a->data[i] && a->data[i]->type == t){
+			du = a->data[i];
+
+			a->data[i] = a->data[a->used];
+			a->data[a->used] = NULL;
+
+			return du;
+		}
+	}
+	return NULL;
 }
 
 data_unset* array_get_element(array* a, const char* key){
@@ -158,26 +188,83 @@ data_unset* array_get_element(array* a, const char* key){
 }
 
 data_unset* array_extract_element(array* a, const char* key){	/*removes found entry from array*/
+	size_t ndx,pos;	
+	force_assert(key != NULL);
 
+	if (ARRAY_NOT_FOUND != (ndx = array_get_index(a, key, strlen(key), &pos))){
+		size_t last_ndx = a->used - 1;
+		data_unset* entry = a->data[ndx];
+
+		if (last_ndx != ndx){
+			size_t last_elem_pos;
+			force_assert(last_ndx == array_get_index(a, CONST_BUF_LEN(a->data[last_ndx]->key), &last_elem_pos));
+			
+			a->data[ndx] = a->data[last_ndx];
+			a->data[last_ndx] = NULL;
+			a->sorted[last_elem_pos] = ndx;
+		}else{
+			a->data[ndx] = NULL;
+		}
+		
+		if (pos != last_ndx){
+			memmove(a->sorted + pos, a->sorted + pos + 1, (last_ndx - pos)*sizeof(*a->sorted));
+		}
+		a->sorted[last_ndx] = ARRAY_NOT_FOUND;
+		a->used--;
+		return entry;
+	}
+
+	return NULL;
 }
 
 void array_set_key_value(array* a, const char* key, size_t key_len, const char* value, size_t value_len){
+	data_string* dst;
 
+	if (NULL != (dst = (data_string*)array_get_element(a, key))){
+		buffer_copy_string_len(dst->value, value, value_len);
+		return;
+	}
+
+	if (NULL == (dst = (data_string*)array_get_unused_element(a, TYPE_STRING))){
+		dst = data_string_init();
+	}
+	buffer_copy_string_len(dst->key, key, key_len);
+	buffer_copy_string_len(dst->value, value, value_len);
+	array_insert_unique(a, (data_unset*)dst);
 }
 
 void array_replace(array* a, data_unset* entry){
+	data_unset** old;
+	force_assert(entry != NULL);
 
+	if (NULL != (old = array_find_or_insert(a, entry))){
+		force_assert(*old != entry);
+		(*old)->free(*old);
+		*old = entry;
+	}	
 }
 
-int array_strcasecmp(const char* a, size_t a_len, const char* b, size_t b_len){
-
-}
+// int array_strcasecmp(const char* a, size_t a_len, const char* b, size_t b_len){
+// 
+// }
 
 void array_print_indent(int depth){
-
+	size_t i;
+	for (i = 0; i < depth; i++){
+		fprintf(stdout, "	");
+	}
 }
 
 size_t array_get_max_key_length(array* a){
+	size_t i;
+	size_t maxlen = 0;
 
+	for (i = 0; i < a->used; i++){
+		data_unset* du = a->data[i];
+		size_t len = buffer_string_length(du->key);
+		if (len > maxlen)
+			maxlen = len;
+	}
+	return maxlen;
 }
 

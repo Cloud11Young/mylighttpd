@@ -64,6 +64,7 @@ static server* server_init(){
 	force_assert(srv->joblist != NULL);
 
 	srv->srvconf.modules = array_init();
+	srv->srvconf.upload_tempdirs = array_init();
 
 	srv->errorlog_fd = STDERR_FILENO;
 	srv->errorlog_mode = ERRORLOG_FD;

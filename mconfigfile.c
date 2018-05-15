@@ -401,7 +401,10 @@ static int config_insert(server* srv){
 		{ "server.errorlog",			NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*1*/
 		{ "server.chroot",				NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*3*/
 		{ "server.modules",				NULL,	T_CONFIG_ARRAY,		T_CONFIG_SCOPE_SERVER },/*9*/
+		{ "server.event-handler",		NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*10*/
 		{ "server.stat_cache_engine",	NULL,	T_CONFIG_STRING,	T_CONFIG_SCOPE_SERVER },/*42*/
+		{ "server.upload-dirs",			NULL,	T_CONFIG_ARRAY,		T_CONFIG_SCOPE_SERVER },/*45*/
+		
 		{NULL,							NULL,	T_CONFIG_UNSET,		T_CONFIG_SCOPE_UNSET}
 	};
 
@@ -409,9 +412,11 @@ static int config_insert(server* srv){
 	cv[1].destination = srv->srvconf.errorlog_file;
 	cv[2].destination = srv->srvconf.changeroot;	
 	cv[3].destination = srv->srvconf.modules;
-
+	cv[4].destination = srv->srvconf.event_handler;
 	stat_cache_string = buffer_init();
-	cv[4].destination = stat_cache_string;
+	cv[5].destination = stat_cache_string;
+
+	cv[6].destination = srv->srvconf.upload_tempdirs;
 
 	srv->config_storage = calloc(1, srv->config_context->used * sizeof(*srv->config_storage));
 	force_assert(srv->config_storage != NULL);
@@ -425,6 +430,7 @@ static int config_insert(server* srv){
 
 		s->document_root = buffer_init();
 		s->mimetypes = array_init();
+		s->ssl_pemfile = buffer_init();
 
 		srv->config_storage[i] = s;
 
@@ -432,6 +438,10 @@ static int config_insert(server* srv){
 			break;
 		}
 	}
+
+	data_config const* config = (data_config const*)srv->config_context->data[0];
+	config->print((data_unset*)config, 2);
+
 	{
 		specific_config* s = srv->config_storage[0];
 		s->http_parseopts =
@@ -611,7 +621,147 @@ int config_read(server* srv, const char* fn){
 }
 
 int config_set_defaults(server* srv){
+	size_t i;
+	struct stat st1, st2;
+	specific_config* s = srv->config_storage[0];
 
+	struct evt_map{ fdevent_handler_t et; const char* name; } event_handlers[] = {
+#ifdef USE_LINUX_EPOLL
+		{ FDEVENT_HANDLER_LINUX_SYSEPOLL, "linux-sysepoll" },
+#endif
+#ifdef USE_POLL
+		{ FDEVENT_HANDLER_POLL, "poll" },
+#endif
+#ifdef USE_SELECT
+		{ FDEVENT_HANDLER_SELECT, "select" },
+#endif
+#ifdef USE_LIBEV
+		{ FDEVENT_HANDLER_LIBEV, "libev" },
+#endif
+#ifdef USE_SOLARIS_DEVPOLL
+		{ FDEVENT_HANDLER_SOLARIS_DEVPOLL, "solaris-devpoll" },
+#endif
+#ifdef USE_SOLARIS_PORT
+		{ FDEVENT_HANDLER_SOLARIS_PORT, "solaris-eventport" },
+#endif
+#ifdef USE_FREEBSD_KQUEUE
+		{ FDEVENT_HANDLER_FREEBSD_KQUEUE, "freebsd-kqueue" },
+		{ FDEVENT_HANDLER_FREEBSD_KQUEUE, "kqueue" },
+#endif
+		{FDEVENT_HANDLER_UNSET, NULL}
+	};
+
+	if (!buffer_string_is_empty(srv->srvconf.changeroot)){
+		if (-1 == stat(srv->srvconf.changeroot->ptr, &st1)){
+			log_error_write(srv, __FILE__, __LINE__, "sb", "server.chroot doesn't exist", srv->srvconf.changeroot);
+			return -1;
+		}
+		if (!S_ISDIR(st1.st_mode)){
+			log_error_write(srv, __FILE__, __LINE__, "sb", "server.chroot isn't a directory", srv->srvconf.changeroot);
+			return -1;
+		}
+	}
+
+	if (!srv->srvconf.upload_tempdirs->used){
+		data_string* ds = data_string_init();
+		const char* tempdir = getenv("TEMPDIR");
+		if (tempdir == NULL)	tempdir = "/var/temp";
+		buffer_copy_string(ds->value, tempdir);
+		array_insert_unique(srv->srvconf.upload_tempdirs, (data_unset*)ds);
+	}
+
+	if (srv->srvconf.upload_tempdirs->used){
+		buffer* const b = srv->tmp_buf;
+		size_t len;
+		if (!buffer_string_is_empty(srv->srvconf.changeroot)){
+			buffer_copy_buffer(b, srv->srvconf.changeroot);
+			buffer_append_slash(b);
+		}else{
+			buffer_reset(b);
+		}
+
+		len = buffer_string_length(b);
+		for (i = 0; i < srv->srvconf.upload_tempdirs->used; i++){
+			const data_string* const ds = (data_string*)srv->srvconf.upload_tempdirs->data[i];
+			buffer_string_set_length(b, len);
+			buffer_append_string_buffer(b, ds->value);
+			if (-1 == stat(b->ptr, &st1)){
+				log_error_write(srv, __FILE__, __LINE__, "sb", "server.upload_tempdirs doesn't exist", b);
+				return -1;
+			}
+			if (!S_ISDIR(st1.st_mode)){
+				log_error_write(srv, __FILE__, __LINE__, "sb", "server.upload_tempdirs isn't a directory", b);
+				return -1;
+			}
+		}
+	}
+
+	chunkqueue_set_tempdirs_default(srv->srvconf.upload_tempdirs, srv->srvconf.upload_temp_file_size);
+
+	if (buffer_string_is_empty(s->document_root)){
+		log_error_write(srv, __FILE__, __LINE__, "s", "a default document-root has to be set");
+		return -1;
+	}
+
+	buffer_copy_buffer(srv->tmp_buf, s->document_root);
+
+	buffer_to_lower(srv->tmp_buf);
+
+	if (2 == s->force_lowercase_filenames){
+		s->force_lowercase_filenames = 0;
+
+		if (stat(srv->tmp_buf->ptr, &st1) == 0){
+			int is_lower = 0;
+			is_lower = buffer_is_equal(srv->tmp_buf, s->document_root);
+			
+			buffer_copy_buffer(srv->tmp_buf, s->document_root);
+
+			buffer_to_upper(srv->tmp_buf);
+			if (is_lower && buffer_is_equal(srv->tmp_buf, s->document_root)){
+				s->force_lowercase_filenames = 0;
+			}
+			else if (0 == stat(srv->tmp_buf->ptr, &st2)){
+				if (st1.st_ino == st2.st_ino){
+					s->force_lowercase_filenames = 1;
+				}
+			}
+		}
+	}
+
+	if (srv->srvconf.port == 0)
+		srv->srvconf.port = s->ssl_enabled ? 443 : 80;
+	
+	if (buffer_string_is_empty(srv->srvconf.event_handler)){
+		srv->event_handler = event_handlers[0].et;
+
+		if (srv->event_handler == FDEVENT_HANDLER_UNSET){
+			log_error_write(srv, __FILE__, __LINE__, "s", "sorry,there is no event-handler for this system");
+			return -1;
+		}
+	}else{
+		for (i = 0; event_handlers[i].name; i++){
+			if (0==strcmp(event_handlers[i].name, srv->srvconf.event_handler->ptr)){
+				srv->event_handler = event_handlers[i].et;
+				break;
+			}
+		}
+		if (srv->event_handler == FDEVENT_HANDLER_UNSET){
+			log_error_write(srv, __FILE__, __LINE__, "s", "the selected event-handler in unknown or not supported");
+			return -1;
+		}
+	}
+
+	if (s->ssl_enabled){
+		if (buffer_is_empty(s->ssl_pemfile)){
+			log_error_write(srv, __FILE__, __LINE__, "s", "ssl.pemfile has to be set");
+			return -1;
+		}
+#ifndef USE_OPENSSL
+		log_error_write(srv, __FILE__, __LINE__, "s", "ssl support missing,recompile with --with-openssl");
+		return -1;
+#endif
+	}
+	return 0;
 }
 
 

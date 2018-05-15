@@ -49,6 +49,9 @@ void buffer_move(buffer* b, buffer* src);
 
 int buffer_caseless_compare(const char* a, size_t a_len, const char* b, size_t b_len);
 
+void buffer_to_lower(buffer* b);
+void buffer_to_upper(buffer* b);
+
 #define LI_ITOSTRING_LENGTH (2 + (8 * sizeof(intmax_t) * 31 + 99) / 100)
 
 int buffer_string_length(const buffer* b);

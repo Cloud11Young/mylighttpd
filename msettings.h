@@ -17,4 +17,5 @@ typedef enum{
 #define MAX_READ_LIMIT (256 * 1024)
 #define MAX_WRITE_LIMIT (256 * 1024)
 
+#define BUFFER_MAX_REUSE_SIZE (4 * 1024)
 #endif

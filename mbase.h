@@ -84,15 +84,19 @@ typedef struct specific_config{
 	buffer* document_root;
 	unsigned short high_precision_timestamps;
 
-	unsigned short use_ipv6;
-	unsigned short ssl_enabled;
+	unsigned short use_ipv6;	
 	unsigned short defer_accept;
 	int listen_backlog;
+
+	unsigned short ssl_enabled;
+	buffer* ssl_pemfile;
 
 	unsigned short follow_symlink;
 
 	unsigned int http_parseopts;
 
+	unsigned short force_lowercase_filenames;
+	
 	array* mimetypes;
 }specific_config;
 
@@ -108,10 +112,15 @@ typedef struct server_config{
 	
 	buffer* errorlog_file;
 	buffer* breakagelog_file;
+
+	buffer* event_handler;
+
 	unsigned short errorlog_use_syslog;
 	unsigned short log_state_handling;
 		
 	array* modules;
+	array* upload_tempdirs;
+	unsigned int upload_temp_file_size;
 
 	unsigned short dont_daemonize;
 	int max_conns;
